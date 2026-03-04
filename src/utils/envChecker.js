@@ -1,9 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// 添加自己的简单日志函数，防止循环依赖
+// Add simple log function to prevent circular dependency
 function log(level, message) {
-  // 只在控制台输出，不写入文件
+  // Output to console only, do not write to file
   const timestamp = new Date().toISOString();
   if (level === 'ERROR') {
     console.error(`[ERROR] ${timestamp} ${message}`);
@@ -15,8 +15,8 @@ function log(level, message) {
 }
 
 /**
- * 检查 .env 文件是否存在
- * @returns {boolean} 文件是否存在
+ * Check if .env file exists
+ * @returns {boolean} Whether the file exists
  */
 function checkEnvFileExists() {
   const envPath = path.resolve(process.cwd(), '.env');
@@ -24,16 +24,16 @@ function checkEnvFileExists() {
 }
 
 /**
- * 检查必要的环境变量是否已设置
- * @returns {Object} 检查结果，包含是否通过和缺失的变量列表
+ * Check if required environment variables are set
+ * @returns {Object} Check result with pass status and list of missing variables
  */
 function checkRequiredEnvVars() {
-  // 定义必要的环境变量列表
+  // Define list of required environment variables
   const requiredVars = [
-    'API_KEYS', // API Keys 配置
+    'API_KEYS', // API Keys configuration
   ];
 
-  // 如果启用了自动刷新，则需要检查相关配置
+  // If auto refresh is enabled, check related configuration
   if (process.env.ENABLE_AUTO_REFRESH === 'true') {
     requiredVars.push(
       'GITHUB_TOKEN',
@@ -44,7 +44,7 @@ function checkRequiredEnvVars() {
     );
   }
 
-  // 检查每个必要的环境变量
+  // Check each required environment variable
   const missingVars = requiredVars.filter(varName => !process.env[varName]);
 
   return {
@@ -54,32 +54,32 @@ function checkRequiredEnvVars() {
 }
 
 /**
- * 执行环境检查，如果不符合要求则退出程序
+ * Execute environment check, exit program if requirements not met
  */
 function enforceEnvCheck() {
-  log('INFO', '正在检查环境配置...');
+  log('INFO', 'Checking environment configuration...');
   
-  // 检查 .env 文件是否存在
+  // Check if .env file exists
   const envFileExists = checkEnvFileExists();
   if (!envFileExists) {
-    log('ERROR', '\n错误: 未找到 .env 文件!');
-    log('ERROR', '请根据 .env.example 创建 .env 文件并配置必要的环境变量。');
-    log('ERROR', '执行以下命令复制示例文件: cp .env.example .env,或执行npm run setup\n');
-    process.exit(1); // 退出程序，状态码 1 表示错误
+    log('ERROR', '\nError: .env file not found!');
+    log('ERROR', 'Please create .env file from .env.example and configure required environment variables.');
+    log('ERROR', 'Run: cp .env.example .env, or npm run setup\n');
+    process.exit(1); // Exit program, status code 1 indicates error
   }
   
-  // 检查必要的环境变量
+  // Check required environment variables
   const { passed, missingVars } = checkRequiredEnvVars();
   if (!passed) {
-    log('ERROR', '\n错误: 以下必要的环境变量未在 .env 文件中设置:');
+    log('ERROR', '\nError: The following required environment variables are not set in .env file:');
     missingVars.forEach(varName => {
       log('ERROR', `  - ${varName}`);
     });
-    log('ERROR', '\n请在 .env 文件中配置这些变量后重新启动程序。\n');
-    process.exit(1); // 退出程序，状态码 1 表示错误
+    log('ERROR', '\nPlease configure these variables in .env file and restart the program.\n');
+    process.exit(1); // Exit program, status code 1 indicates error
   }
   
-  log('INFO', '环境检查通过，继续启动程序...');
+  log('INFO', 'Environment check passed, continuing startup...');
 }
 
 module.exports = {

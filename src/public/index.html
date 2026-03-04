@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cursor To OpenAI - API Key 管理</title>
+    <title>Cursor To OpenAI - API Key Management</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,14 +18,14 @@
                 <i class="fas fa-link" style="font-size: 24px; margin-right: 12px;"></i>
                 <h1>Cursor To OpenAI</h1>
             </div>
-            <p>管理自定义 API Key 与 Cursor Cookie 映射关系的高效工具</p>
+            <p>Efficient tool for managing custom API Key to Cursor Cookie mappings</p>
             <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                     <button id="clearCacheBtn" style="background-color: rgba(255,255,255,0.15); backdrop-filter: blur(5px);">
-                        <i class="fas fa-sync-alt" style="margin-right: 6px;"></i>清除缓存
+                        <i class="fas fa-sync-alt" style="margin-right: 6px;"></i>Clear Cache
                     </button>
                     <button id="logsBtn" style="background-color: rgba(255,255,255,0.15); backdrop-filter: blur(5px);">
-                        <i class="fas fa-list-ul" style="margin-right: 6px;"></i>系统日志
+                        <i class="fas fa-list-ul" style="margin-right: 6px;"></i>System Logs
                     </button>
                 </div>
                 <div>
@@ -33,7 +33,7 @@
                         <i class="fas fa-user-circle" style="margin-right: 6px;"></i><span id="usernameText"></span>
                     </span>
                     <button id="logoutBtn" style="background: rgba(255, 59, 48, 0.8); backdrop-filter: blur(5px);">
-                        <i class="fas fa-sign-out-alt" style="margin-right: 6px;"></i>退出
+                        <i class="fas fa-sign-out-alt" style="margin-right: 6px;"></i>Logout
                     </button>
                 </div>
             </div>
@@ -43,29 +43,29 @@
         <div class="card">
             <div style="display: flex; align-items: center; margin-bottom: 16px;">
                 <i class="fas fa-key" style="color: var(--ios-blue); font-size: 18px; margin-right: 10px;"></i>
-                <h2 style="margin: 0;">添加/更新 API Key</h2>
+                <h2 style="margin: 0;">Add/Update API Key</h2>
             </div>
             <div id="addKeyMessage"></div>
             <form id="addKeyForm">
                 <div class="form-group">
                     <label for="apiKey">
-                        <i class="fas fa-fingerprint" style="margin-right: 6px; color: var(--ios-gray);"></i>API Key（自定义）
+                        <i class="fas fa-fingerprint" style="margin-right: 6px; color: var(--ios-gray);"></i>API Key (Custom)
                     </label>
-                    <input type="text" id="apiKey" name="apiKey" placeholder="输入您想使用的自定义 API Key" required>
+                    <input type="text" id="apiKey" name="apiKey" placeholder="Enter your custom API Key" required>
                 </div>
                 <div class="form-group">
                     <label for="cookieValues">
-                        <i class="fas fa-cookie-bite" style="margin-right: 6px; color: var(--ios-gray);"></i>Cursor Cookie 值列表
+                        <i class="fas fa-cookie-bite" style="margin-right: 6px; color: var(--ios-gray);"></i>Cursor Cookie Value List
                     </label>
                     <div class="cookies-container" id="addCookieTagsContainer">
-                        <!-- Cookie标签将在这里动态显示 -->
+                        <!-- Cookie tags will be dynamically loaded here -->
                     </div>
                     <div class="form-group">
                         <label for="addNewCookie">
-                            <i class="fas fa-plus-circle" style="margin-right: 6px; color: var(--ios-gray);"></i>添加新Cookie
+                            <i class="fas fa-plus-circle" style="margin-right: 6px; color: var(--ios-gray);"></i>Add New Cookie
                         </label>
                         <div style="display: flex; gap: 10px;">
-                            <input type="text" id="addNewCookie" placeholder="输入新的WorkosCursorSessionToken值">
+                            <input type="text" id="addNewCookie" placeholder="Enter new WorkosCursorSessionToken value">
                             <button type="button" id="addNewCookieBtn" class="add-cookie-btn">
                                 <i class="fas fa-plus"></i>
                             </button>
@@ -74,7 +74,7 @@
                     <textarea id="cookieValues" name="cookieValues" style="display: none;"></textarea>
                 </div>
                 <button type="submit">
-                    <i class="fas fa-save" style="margin-right: 6px;"></i>保存
+                    <i class="fas fa-save" style="margin-right: 6px;"></i>Save
                 </button>
             </form>
         </div>
@@ -82,7 +82,7 @@
         <div class="card">
             <div style="display: flex; align-items: center; margin-bottom: 16px;">
                 <i class="fas fa-list" style="color: var(--ios-blue); font-size: 18px; margin-right: 10px;"></i>
-                <h2 style="margin: 0;">现有 API Key</h2>
+                <h2 style="margin: 0;">Existing API Keys</h2>
             </div>
             <div id="keyListMessage"></div>
             <div class="table-responsive">
@@ -90,12 +90,12 @@
                     <thead>
                         <tr>
                             <th>API KEY</th>
-                            <th>COOKIE 数量</th>
-                            <th>操作</th>
+                            <th>COOKIE COUNT</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="keyList">
-                        <!-- 数据将通过 JavaScript 动态加载 -->
+                        <!-- Data will be dynamically loaded via JavaScript -->
                     </tbody>
                 </table>
             </div>
@@ -104,16 +104,16 @@
         <div class="card">
             <div style="display: flex; align-items: center; margin-bottom: 16px;">
                 <i class="fas fa-book" style="color: var(--ios-blue); font-size: 18px; margin-right: 10px;"></i>
-                <h2 style="margin: 0;">使用说明</h2>
+                <h2 style="margin: 0;">Instructions</h2>
             </div>
             <ol style="padding-left: 20px; margin-top: 0;">
-                <li>添加自定义 API Key 和对应的 Cursor Cookie 值。</li>
-                <li>API Key 可以不添加 Cookie，但不会有任何功能，可以后续再添加 Cookie。</li>
-                <li>使用自定义 API Key 作为 OpenAI API 的认证凭证。</li>
-                <li>系统将自动在多个 Cookie 之间进行轮询。
+                <li>Add custom API Key and corresponding Cursor Cookie values.</li>
+                <li>API Key can be added without Cookie, but will have no functionality; you can add Cookie later.</li>
+                <li>Use custom API Key as the authentication credential for OpenAI API.</li>
+                <li>The system will automatically poll between multiple Cookies.
                     <ul style="margin-top: 8px;">
-                        <li><code style="background: rgba(0, 122, 255, 0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace;">/v1/models</code> - 模型列表</li>
-                        <li><code style="background: rgba(0, 122, 255, 0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace;">/v1/chat/completions</code> - 聊天补全</li>
+                        <li><code style="background: rgba(0, 122, 255, 0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace;">/v1/models</code> - Model list</li>
+                        <li><code style="background: rgba(0, 122, 255, 0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace;">/v1/chat/completions</code> - Chat completion</li>
                     </ul>
                 </li>
             </ol>
@@ -122,60 +122,60 @@
         <div class="card">
             <div style="display: flex; align-items: center; margin-bottom: 16px;">
                 <i class="fas fa-exclamation-triangle" style="color: var(--ios-red); font-size: 18px; margin-right: 10px;"></i>
-                <h2 style="margin: 0;">无效Cookie管理</h2>
+                <h2 style="margin: 0;">Invalid Cookie Management</h2>
             </div>
             <div class="form-group">
                 <div class="info">
                     <i class="fas fa-info-circle" style="margin-right: 8px;"></i>
-                    以下是系统自动检测到的无效Cookie列表。这些Cookie在请求过程中被发现无效，已被自动从API Key中移除。
+                    Below is the list of invalid cookies automatically detected by the system. These cookies were found invalid during requests and have been automatically removed from API Keys.
                 </div>
                 <div id="invalidCookiesContainer">
                     <div style="text-align: center; padding: 20px;">
                         <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
-                        <span>正在加载...</span>
+                        <span>Loading...</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 新增：Cookie刷新功能 -->
+        <!-- Cookie refresh feature -->
         <div class="card" style="border: 1px solid rgba(255, 59, 48, 0.3); position: relative; background: linear-gradient(to right, rgba(255, 59, 48, 0.05), rgba(255, 255, 255, 0));">
-            <div style="position: absolute; top: -10px; right: -10px; background: var(--ios-red); color: white; padding: 5px 10px; border-radius: 8px; font-weight: 500; font-size: 13px; box-shadow: 0 2px 6px rgba(255, 59, 48, 0.3);">不建议使用</div>
+            <div style="position: absolute; top: -10px; right: -10px; background: var(--ios-red); color: white; padding: 5px 10px; border-radius: 8px; font-weight: 500; font-size: 13px; box-shadow: 0 2px 6px rgba(255, 59, 48, 0.3);">Not Recommended</div>
             
             <div style="display: flex; align-items: center; margin-bottom: 16px;">
                 <i class="fas fa-sync-alt" style="color: var(--ios-red); font-size: 18px; margin-right: 10px;"></i>
-                <h2 style="margin: 0;">Cookie自动刷新 <span style="color: var(--ios-red); font-size: 0.8em; font-weight: 400;">(不建议使用)</span></h2>
+                <h2 style="margin: 0;">Cookie Auto Refresh <span style="color: var(--ios-red); font-size: 0.8em; font-weight: 400;">(Not Recommended)</span></h2>
             </div>
             
             <div class="form-group">
                 <div class="error">
                     <i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i>
-                    <strong>警告：</strong>此功能已标记为不建议使用，可能会导致账号风险。除非必要，请避免使用此功能。
+                    <strong>Warning:</strong> This feature is marked as not recommended and may cause account risk. Avoid using it unless necessary.
                 </div>
                 <div class="info" style="margin-top: 10px;">
                     <i class="fas fa-info-circle" style="margin-right: 8px;"></i>
-                    系统支持自动刷新Cookie，确保API Key始终有足够的可用Cookie。您可以在此手动触发刷新操作。
+                    The system supports automatic Cookie refresh to ensure API Keys always have enough available Cookies. You can manually trigger a refresh here.
                 </div>
                 <div id="refreshCookieMessage"></div>
                 <div style="margin-top: 15px;">
                     <div class="form-group">
                         <label for="refreshApiKey">
-                            <i class="fas fa-filter" style="margin-right: 6px; color: var(--ios-gray);"></i>选择要刷新的API Key
+                            <i class="fas fa-filter" style="margin-right: 6px; color: var(--ios-gray);"></i>Select API Key to refresh
                         </label>
                         <select id="refreshApiKey">
-                            <option value="">所有API Key</option>
-                            <!-- 选项将通过JavaScript动态加载 -->
+                            <option value="">All API Keys</option>
+                            <!-- Options will be dynamically loaded via JavaScript -->
                         </select>
                     </div>
                     <button id="refreshCookieBtn" style="background: var(--ios-green);">
-                        <i class="fas fa-sync-alt" style="margin-right: 6px;"></i>刷新Cookie
+                        <i class="fas fa-sync-alt" style="margin-right: 6px;"></i>Refresh Cookie
                     </button>
                 </div>
                 <div id="refreshStatusContainer" style="margin-top: 15px; display: none;">
                     <div class="info">
                         <div>
                             <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
-                            刷新状态：<span id="refreshStatus">准备中...</span>
+                            Refresh Status: <span id="refreshStatus">Preparing...</span>
                         </div>
                         <div style="margin-top: 10px;">
                             <progress id="refreshProgress" value="0" max="100"></progress>
@@ -185,47 +185,47 @@
             </div>
         </div>
 
-        <!-- 新增：获取Cursor Cookie功能 -->
+        <!-- Get Cursor Cookie feature -->
         <div class="card">
             <div style="display: flex; align-items: center; margin-bottom: 16px;">
                 <i class="fas fa-plus-circle" style="color: var(--ios-blue); font-size: 18px; margin-right: 10px;"></i>
-                <h2 style="margin: 0;">获取Cursor Cookie</h2>
+                <h2 style="margin: 0;">Get Cursor Cookie</h2>
             </div>
             <div class="form-group">
                 <div class="info">
                     <i class="fas fa-info-circle" style="margin-right: 8px;"></i>
-                    通过此功能可以快速获取新的Cursor Cookie并添加到系统中。点击按钮生成链接，完成登录后自动添加Cookie。系统将等待最多5分钟获取Cookie。
+                    Use this feature to quickly obtain new Cursor Cookies and add them to the system. Click the button to generate a link; after logging in, Cookies will be added automatically. The system will wait up to 5 minutes to obtain the Cookie.
                 </div>
                 <div id="getCookieMessage"></div>
                 <div style="margin-top: 15px;">
                     <div class="form-group">
                         <label for="targetApiKey">
-                            <i class="fas fa-tag" style="margin-right: 6px; color: var(--ios-gray);"></i>选择要添加Cookie的API Key
+                            <i class="fas fa-tag" style="margin-right: 6px; color: var(--ios-gray);"></i>Select API Key to add Cookie to
                         </label>
                         <select id="targetApiKey">
-                            <option value="">所有API Key</option>
-                            <!-- 选项将通过JavaScript动态加载 -->
+                            <option value="">All API Keys</option>
+                            <!-- Options will be dynamically loaded via JavaScript -->
                         </select>
                     </div>
                     <button id="generateLinkBtn" style="background: var(--ios-blue);">
-                        <i class="fas fa-link" style="margin-right: 6px;"></i>生成登录链接
+                        <i class="fas fa-link" style="margin-right: 6px;"></i>Generate Login Link
                     </button>
                 </div>
                 <div id="loginLinkContainer" style="margin-top: 15px; display: none;">
                     <div class="info">
-                        <p><i class="fas fa-info-circle" style="margin-right: 8px;"></i>请点击下面的链接或复制到浏览器打开，然后登录Cursor账号并授权：</p>
+                        <p><i class="fas fa-info-circle" style="margin-right: 8px;"></i>Click the link below or copy it to your browser, then log in to your Cursor account and authorize:</p>
                         <div style="margin: 10px 0; word-break: break-all; background: rgba(0, 122, 255, 0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(0, 122, 255, 0.15);">
                             <a id="loginLink" href="#" target="_blank" style="color: var(--ios-blue); text-decoration: none; display: flex; align-items: center;">
                                 <i class="fas fa-external-link-alt" style="margin-right: 8px;"></i>
                                 <span id="loginLinkText"></span>
                             </a>
                         </div>
-                        <p><i class="fas fa-clock" style="margin-right: 8px;"></i>登录完成后系统将自动获取Cookie并添加到API Key中。请等待最多5分钟，期间请勿关闭此页面。</p>
+                        <p><i class="fas fa-clock" style="margin-right: 8px;"></i>After login, the system will automatically obtain the Cookie and add it to the API Key. Please wait up to 5 minutes; do not close this page during that time.</p>
                     </div>
                     <div id="pollStatus" style="margin-top: 10px;">
                         <div style="display: flex; align-items: center; margin-bottom: 8px;">
                             <i class="fas fa-spinner fa-spin" style="margin-right: 8px; color: var(--ios-blue);"></i>
-                            状态：<span id="pollStatusText" style="margin-left: 4px;">等待用户登录...</span>
+                            Status: <span id="pollStatusText" style="margin-left: 4px;">Waiting for user login...</span>
                         </div>
                         <div>
                             <progress id="pollProgress" value="0" max="100"></progress>
@@ -236,30 +236,30 @@
         </div>
     </div>
 
-    <!-- 修改 Cookie 的模态框 -->
+    <!-- Edit Cookie modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
             <div style="display: flex; align-items: center; margin-bottom: 16px;">
                 <i class="fas fa-edit" style="color: var(--ios-blue); font-size: 18px; margin-right: 10px;"></i>
-                <h2 style="margin: 0;">修改 API Key 的 Cookie</h2>
+                <h2 style="margin: 0;">Modify API Key Cookies</h2>
             </div>
             <div id="editModalMessage"></div>
             <form id="editCookieForm">
                 <input type="hidden" id="editApiKey" name="editApiKey">
                 <div class="form-group">
                     <label for="editCookieValues">
-                        <i class="fas fa-cookie-bite" style="margin-right: 6px; color: var(--ios-gray);"></i>Cursor Cookie 值列表
+                        <i class="fas fa-cookie-bite" style="margin-right: 6px; color: var(--ios-gray);"></i>Cursor Cookie Value List
                     </label>
                     <div class="cookies-container" id="cookieTagsContainer">
-                        <!-- Cookie标签将在这里动态显示 -->
+                        <!-- Cookie tags will be dynamically loaded here -->
                     </div>
                     <div class="form-group">
                         <label for="newCookie">
-                            <i class="fas fa-plus-circle" style="margin-right: 6px; color: var(--ios-gray);"></i>添加新Cookie
+                            <i class="fas fa-plus-circle" style="margin-right: 6px; color: var(--ios-gray);"></i>Add New Cookie
                         </label>
                         <div style="display: flex; gap: 10px;">
-                            <input type="text" id="newCookie" placeholder="输入新的WorkosCursorSessionToken值">
+                            <input type="text" id="newCookie" placeholder="Enter new WorkosCursorSessionToken value">
                             <button type="button" id="addCookieBtn" class="add-cookie-btn">
                                 <i class="fas fa-plus"></i>
                             </button>
@@ -268,35 +268,35 @@
                     <textarea id="editCookieValues" name="editCookieValues" style="display: none;"></textarea>
                 </div>
                 <button type="submit">
-                    <i class="fas fa-save" style="margin-right: 6px;"></i>保存修改
+                    <i class="fas fa-save" style="margin-right: 6px;"></i>Save Changes
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- 无效Cookie编辑模态框 -->
+    <!-- Invalid Cookie edit modal -->
     <div id="invalidCookieModal" class="modal">
         <div class="modal-content">
             <span class="close" id="closeInvalidCookieModal">&times;</span>
             <div style="display: flex; align-items: center; margin-bottom: 16px;">
                 <i class="fas fa-ban" style="color: var(--ios-red); font-size: 18px; margin-right: 10px;"></i>
-                <h2 style="margin: 0;">管理无效Cookie</h2>
+                <h2 style="margin: 0;">Manage Invalid Cookies</h2>
             </div>
             <div id="invalidCookieModalMessage"></div>
             <form id="invalidCookieForm">
                 <div class="form-group">
                     <label for="invalidCookiesValues">
-                        <i class="fas fa-cookie-bite" style="margin-right: 6px; color: var(--ios-gray);"></i>无效Cookie列表
+                        <i class="fas fa-cookie-bite" style="margin-right: 6px; color: var(--ios-gray);"></i>Invalid Cookie List
                     </label>
                     <div class="cookies-container" id="invalidCookieTagsContainer">
-                        <!-- Cookie标签将在这里动态显示 -->
+                        <!-- Cookie tags will be dynamically loaded here -->
                     </div>
                     <div class="form-group">
                         <label for="newInvalidCookie">
-                            <i class="fas fa-plus-circle" style="margin-right: 6px; color: var(--ios-gray);"></i>添加Cookie
+                            <i class="fas fa-plus-circle" style="margin-right: 6px; color: var(--ios-gray);"></i>Add Cookie
                         </label>
                         <div style="display: flex; gap: 10px;">
-                            <input type="text" id="newInvalidCookie" placeholder="输入Cookie值">
+                            <input type="text" id="newInvalidCookie" placeholder="Enter cookie value">
                             <button type="button" id="addInvalidCookieBtn" class="add-cookie-btn">
                                 <i class="fas fa-plus"></i>
                             </button>
@@ -305,19 +305,19 @@
                     <textarea id="invalidCookiesValues" name="invalidCookiesValues" style="display: none;"></textarea>
                 </div>
                 <button type="submit">
-                    <i class="fas fa-save" style="margin-right: 6px;"></i>保存修改
+                    <i class="fas fa-save" style="margin-right: 6px;"></i>Save Changes
                 </button>
             </form>
         </div>
     </div>
     
-    <!-- 侧边目录导航 -->
+    <!-- Side navigation -->
     <div class="side-nav-trigger">
         <div class="trigger-dot"></div>
     </div>
     <div class="side-nav-menu">
         <div class="side-nav-content">
-            <!-- 目录项将通过JS动态生成 -->
+            <!-- Navigation items will be dynamically generated via JS -->
         </div>
     </div>
 

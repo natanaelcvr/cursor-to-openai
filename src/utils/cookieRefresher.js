@@ -9,55 +9,55 @@ const config = require('../config/config');
 const { extractCookiesFromCsv } = require('./extractCookieFromCsv');
 const logger = require('./logger');
 
-// GitHub 仓库信息从环境变量中获取
+// GitHub repository info from environment variables
 const GITHUB_OWNER = process.env.GITHUB_OWNER || 'liuw1535';
 const GITHUB_REPO = process.env.GITHUB_REPO || 'Cursor-Register';
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN; // 需要在环境变量中设置
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN; // Must be set in environment variables
 const GITHUB_WORKFLOW_ID = process.env.GITHUB_WORKFLOW_ID || 'register.yml';
 const TRIGGER_WORKFLOW = process.env.TRIGGER_WORKFLOW === 'true';
 
-// 下载目录
+// Download directory
 const DOWNLOAD_DIR = path.join(__dirname, '../../downloads');
 const EXTRACT_DIR = path.join(__dirname, '../../extracted');
 
-// 确保目录存在
+// Ensure directory exists
 function ensureDirectoryExists(dir) {
   if (!fs.existsSync(dir)) {
     try {
       fs.mkdirSync(dir, { recursive: true });
-      logger.info(`创建目录成功: ${dir}`);
+      logger.info(`Created directory successfully: ${dir}`);
     } catch (err) {
-      logger.error(`创建目录失败: ${dir}`, err);
+      logger.error(`Failed to create directory: ${dir}`, err);
       throw err;
     }
   }
 }
 
-// 触发 GitHub Actions 工作流
+// Trigger GitHub Actions workflow
 async function triggerWorkflow() {
   try {
     if (!GITHUB_TOKEN) {
-      logger.error('未设置 GITHUB_TOKEN，无法触发工作流');
+      logger.error('GITHUB_TOKEN not set, cannot trigger workflow');
       return null;
     }
 
-    logger.info(`正在触发 GitHub Actions 工作流: ${GITHUB_WORKFLOW_ID}...`);
+    logger.info(`Triggering GitHub Actions workflow: ${GITHUB_WORKFLOW_ID}...`);
     const octokit = new Octokit({
       auth: GITHUB_TOKEN
     });
 
-    // 从环境变量获取工作流参数
+    // Get workflow parameters from environment variables
     const number = process.env.REGISTER_NUMBER || '2';
     const maxWorkers = process.env.REGISTER_MAX_WORKERS || '1';
     const emailServer = process.env.REGISTER_EMAIL_SERVER || 'TempEmail';
     const ingestToOneapi = process.env.REGISTER_INGEST_TO_ONEAPI === 'true';
-    const uploadArtifact = process.env.REGISTER_UPLOAD_ARTIFACT !== 'false'; // 默认为true
-    const useConfigFile = process.env.REGISTER_USE_CONFIG_FILE !== 'false'; // 默认为true
+    const uploadArtifact = process.env.REGISTER_UPLOAD_ARTIFACT !== 'false'; // Default true
+    const useConfigFile = process.env.REGISTER_USE_CONFIG_FILE !== 'false'; // Default true
     const emailConfigs = process.env.REGISTER_EMAIL_CONFIGS || '[]';
 
-    logger.info(`工作流参数: number=${number}, maxWorkers=${maxWorkers}, emailServer=${emailServer}, ingestToOneapi=${ingestToOneapi}, uploadArtifact=${uploadArtifact}, useConfigFile=${useConfigFile}`);
+    logger.info(`Workflow params: number=${number}, maxWorkers=${maxWorkers}, emailServer=${emailServer}, ingestToOneapi=${ingestToOneapi}, uploadArtifact=${uploadArtifact}, useConfigFile=${useConfigFile}`);
 
-    // 获取触发前的最新工作流ID，用于后续识别新触发的工作流
+    // Get latest workflow ID before trigger for identifying newly triggered workflow
     const { data: beforeWorkflowRuns } = await octokit.actions.listWorkflowRuns({
       owner: GITHUB_OWNER,
       repo: GITHUB_REPO,
@@ -69,14 +69,14 @@ async function triggerWorkflow() {
       ? beforeWorkflowRuns.workflow_runs[0].id 
       : 0;
     
-    logger.info(`触发前最新工作流ID: ${latestWorkflowIdBefore}`);
+    logger.info(`Latest workflow ID before trigger: ${latestWorkflowIdBefore}`);
 
-    // 触发工作流
+    // Trigger workflow
     const response = await octokit.actions.createWorkflowDispatch({
       owner: GITHUB_OWNER,
       repo: GITHUB_REPO,
       workflow_id: GITHUB_WORKFLOW_ID,
-      ref: 'main', // 默认使用 main 分支，可以根据需要修改
+      ref: 'main', // Default to main branch, modify as needed
       inputs: {
         number: number,
         max_workers: maxWorkers,
@@ -88,16 +88,16 @@ async function triggerWorkflow() {
       }
     });
 
-    logger.info('工作流触发成功，等待工作流开始运行...');
+    logger.info('Workflow triggered successfully, waiting for workflow to start...');
     
-    // 等待新工作流出现并获取其ID
+    // Wait for new workflow to appear and get its ID
     let newWorkflowRunId = null;
     let findAttempts = 0;
-    const maxFindAttempts = 30; // 最多等待30次，每次5秒
+    const maxFindAttempts = 30; // Max 30 attempts, 5 seconds each
     
     while (findAttempts < maxFindAttempts && !newWorkflowRunId) {
       findAttempts++;
-      logger.info(`查找新触发的工作流，尝试 ${findAttempts}/${maxFindAttempts}...`);
+      logger.info(`Looking for newly triggered workflow, attempt ${findAttempts}/${maxFindAttempts}...`);
       
       try {
         const { data: afterWorkflowRuns } = await octokit.actions.listWorkflowRuns({
@@ -108,109 +108,109 @@ async function triggerWorkflow() {
         });
         
         if (afterWorkflowRuns.workflow_runs && afterWorkflowRuns.workflow_runs.length > 0) {
-          // 查找ID大于之前最新工作流ID的工作流（即新触发的工作流）
+          // Find workflow with ID greater than previous latest (i.e. newly triggered)
           const newWorkflow = afterWorkflowRuns.workflow_runs.find(run => run.id > latestWorkflowIdBefore);
           if (newWorkflow) {
             newWorkflowRunId = newWorkflow.id;
-            logger.info(`找到新触发的工作流，ID: ${newWorkflowRunId}, 状态: ${newWorkflow.status}`);
+            logger.info(`Found newly triggered workflow, ID: ${newWorkflowRunId}, status: ${newWorkflow.status}`);
           }
         }
       } catch (error) {
-        logger.error(`查找工作流时出错 (尝试 ${findAttempts}/${maxFindAttempts}): ${error.message}`);
-        // 出错时继续尝试，不中断循环
+        logger.error(`Error finding workflow (attempt ${findAttempts}/${maxFindAttempts}): ${error.message}`);
+        // Continue attempts on error, don't break loop
       }
       
       if (!newWorkflowRunId) {
-        // 等待5秒后再次检查
+        // Wait 5 seconds then check again
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
     
     if (!newWorkflowRunId) {
-      logger.info('未能找到新触发的工作流，可能触发失败');
+      logger.info('Could not find newly triggered workflow, trigger may have failed');
       return null;
     }
     
-    // 等待工作流完成
+    // Wait for workflow to complete
     let attempts = 0;
-    const maxAttempts = 120; // 最多等待120次，每次30秒，总共60分钟
+    const maxAttempts = 120; // Max 120 attempts, 30 sec each, 60 min total
     let consecutiveErrors = 0;
-    const maxConsecutiveErrors = 5; // 最多允许连续5次错误
+    const maxConsecutiveErrors = 5; // Max 5 consecutive errors allowed
     
     while (attempts < maxAttempts) {
       attempts++;
-      logger.info(`等待工作流完成，尝试 ${attempts}/${maxAttempts}...`);
+      logger.info(`Waiting for workflow to complete, attempt ${attempts}/${maxAttempts}...`);
       
       try {
-        // 获取工作流状态
+        // Get workflow status
         const { data: workflowRun } = await octokit.actions.getWorkflowRun({
           owner: GITHUB_OWNER,
           repo: GITHUB_REPO,
           run_id: newWorkflowRunId
         });
         
-        // 重置连续错误计数
+        // Reset consecutive error count
         consecutiveErrors = 0;
         
-        logger.info(`工作流状态: ${workflowRun.status}, 结果: ${workflowRun.conclusion || '进行中'}`);
+        logger.info(`Workflow status: ${workflowRun.status}, result: ${workflowRun.conclusion || 'in progress'}`);
         
-        // 检查工作流是否完成
+        // Check if workflow completed
         if (workflowRun.status === 'completed') {
           if (workflowRun.conclusion === 'success') {
-            logger.info(`工作流运行成功，ID: ${newWorkflowRunId}`);
+            logger.info(`Workflow run successful, ID: ${newWorkflowRunId}`);
             return workflowRun;
           } else {
-            logger.info(`工作流运行失败，结果: ${workflowRun.conclusion}`);
+            logger.info(`Workflow run failed, result: ${workflowRun.conclusion}`);
             return null;
           }
         }
       } catch (error) {
         consecutiveErrors++;
-        logger.error(`获取工作流状态时出错 (尝试 ${attempts}/${maxAttempts}, 连续错误 ${consecutiveErrors}/${maxConsecutiveErrors}): ${error.message}`);
+        logger.error(`Error getting workflow status (attempt ${attempts}/${maxAttempts}, consecutive errors ${consecutiveErrors}/${maxConsecutiveErrors}): ${error.message}`);
         
-        // 如果连续错误次数超过阈值，则放弃
+        // If consecutive errors exceed threshold, give up
         if (consecutiveErrors >= maxConsecutiveErrors) {
-          logger.error(`连续错误次数超过阈值 (${maxConsecutiveErrors})，放弃等待`);
-          throw new Error(`连续 ${maxConsecutiveErrors} 次获取工作流状态失败: ${error.message}`);
+          logger.error(`Consecutive errors exceeded threshold (${maxConsecutiveErrors}), giving up`);
+          throw new Error(`Failed to get workflow status ${maxConsecutiveErrors} times in a row: ${error.message}`);
         }
         
-        // 错误后等待时间稍微延长
+        // Extend wait time after error
         await new Promise(resolve => setTimeout(resolve, 10000));
-        // 继续循环，不中断
+        // Continue loop, don't break
         continue;
       }
       
-      // 等待30秒后再次检查
+      // Wait 30 seconds then check again
       await new Promise(resolve => setTimeout(resolve, 30000));
     }
     
-    logger.info('等待工作流完成超时');
+    logger.info('Waiting for workflow completion timed out');
     return null;
   } catch (error) {
-    logger.error('触发工作流失败:', error);
-    throw error; // 重新抛出错误，让调用者处理
+    logger.error('Failed to trigger workflow:', error);
+    throw error; // Re-throw for caller to handle
   }
 }
 
-// 从 GitHub Actions 获取最新的 Artifact
+// Get latest Artifact from GitHub Actions
 async function getLatestArtifact() {
   try {
-    logger.info('正在连接 GitHub API...');
+    logger.info('Connecting to GitHub API...');
     const octokit = new Octokit({
       auth: GITHUB_TOKEN
     });
 
-    // 如果配置了自动触发工作流，则先触发工作流
+    // If auto trigger workflow is configured, trigger first
     let workflowRun = null;
     if (TRIGGER_WORKFLOW) {
-      logger.info('配置了自动触发工作流，正在触发...');
+      logger.info('Auto trigger workflow configured, triggering...');
       try {
         workflowRun = await triggerWorkflow();
       } catch (error) {
-        logger.error('触发工作流过程中出现错误:', error.message);
-        logger.info('尝试继续使用已找到的工作流ID...');
+        logger.error('Error occurred during workflow trigger:', error.message);
+        logger.info('Attempting to continue with found workflow ID...');
         
-        // 尝试获取最新的工作流，看是否有正在运行的工作流
+        // Try to get latest workflow, check if any are running
         const { data: runningWorkflows } = await octokit.actions.listWorkflowRuns({
           owner: GITHUB_OWNER,
           repo: GITHUB_REPO,
@@ -220,74 +220,74 @@ async function getLatestArtifact() {
         });
         
         if (runningWorkflows.workflow_runs && runningWorkflows.workflow_runs.length > 0) {
-          // 找到正在运行的工作流
+          // Find running workflow
           const runningWorkflow = runningWorkflows.workflow_runs[0];
-          logger.info(`找到正在运行的工作流，ID: ${runningWorkflow.id}, 状态: ${runningWorkflow.status}`);
+          logger.info(`Found running workflow, ID: ${runningWorkflow.id}, status: ${runningWorkflow.status}`);
           
-          // 等待工作流完成
+          // Wait for workflow to complete
           let attempts = 0;
-          const maxAttempts = 120; // 最多等待120次，每次30秒，总共60分钟
+          const maxAttempts = 120; // Max 120 attempts, 30 sec each, 60 min total
           let consecutiveErrors = 0;
-          const maxConsecutiveErrors = 5; // 最多允许连续5次错误
+          const maxConsecutiveErrors = 5; // Max 5 consecutive errors allowed
           
           while (attempts < maxAttempts) {
             attempts++;
-            logger.info(`等待工作流完成，尝试 ${attempts}/${maxAttempts}...`);
+            logger.info(`Waiting for workflow to complete, attempt ${attempts}/${maxAttempts}...`);
             
             try {
-              // 获取工作流状态
+              // Get workflow status
               const { data: currentWorkflow } = await octokit.actions.getWorkflowRun({
                 owner: GITHUB_OWNER,
                 repo: GITHUB_REPO,
                 run_id: runningWorkflow.id
               });
               
-              // 重置连续错误计数
+              // Reset consecutive error count
               consecutiveErrors = 0;
               
-              logger.info(`工作流状态: ${currentWorkflow.status}, 结果: ${currentWorkflow.conclusion || '进行中'}`);
+              logger.info(`Workflow status: ${currentWorkflow.status}, result: ${currentWorkflow.conclusion || 'in progress'}`);
               
-              // 检查工作流是否完成
+              // Check if workflow completed
               if (currentWorkflow.status === 'completed') {
                 if (currentWorkflow.conclusion === 'success') {
-                  logger.info(`工作流运行成功，ID: ${currentWorkflow.id}`);
+                  logger.info(`Workflow run successful, ID: ${currentWorkflow.id}`);
                   workflowRun = currentWorkflow;
                   break;
                 } else {
-                  logger.info(`工作流运行失败，结果: ${currentWorkflow.conclusion}`);
+                  logger.info(`Workflow run failed, result: ${currentWorkflow.conclusion}`);
                   break;
                 }
               }
             } catch (err) {
               consecutiveErrors++;
-              logger.error(`获取工作流状态时出错 (尝试 ${attempts}/${maxAttempts}, 连续错误 ${consecutiveErrors}/${maxConsecutiveErrors}): ${err.message}`);
+              logger.error(`Error getting workflow status (attempt ${attempts}/${maxAttempts}, consecutive errors ${consecutiveErrors}/${maxConsecutiveErrors}): ${err.message}`);
               
-              // 如果连续错误次数超过阈值，则放弃
+              // If consecutive errors exceed threshold, give up
               if (consecutiveErrors >= maxConsecutiveErrors) {
-                logger.error(`连续错误次数超过阈值 (${maxConsecutiveErrors})，放弃等待`);
+                logger.error(`Consecutive errors exceeded threshold (${maxConsecutiveErrors}), giving up`);
                 break;
               }
               
-              // 错误后等待时间稍微延长
+              // Extend wait time after error
               await new Promise(resolve => setTimeout(resolve, 10000));
-              // 继续循环，不中断
+              // Continue loop, don't break
               continue;
             }
             
-            // 等待30秒后再次检查
+            // Wait 30 seconds then check again
             await new Promise(resolve => setTimeout(resolve, 30000));
           }
         }
       }
       
       if (!workflowRun) {
-        logger.info('触发工作流失败或等待超时，尝试获取最新的工作流运行');
+        logger.info('Workflow trigger failed or wait timed out, trying to get latest workflow run');
       }
     }
 
-    // 如果没有触发工作流或触发失败，则获取最新的工作流运行
+    // If workflow was not triggered or trigger failed, get latest workflow run
     if (!workflowRun) {
-      logger.info('获取最新的工作流运行...');
+      logger.info('Getting latest workflow run...');
       const { data: workflowRuns } = await octokit.actions.listWorkflowRunsForRepo({
         owner: GITHUB_OWNER,
         repo: GITHUB_REPO,
@@ -296,28 +296,28 @@ async function getLatestArtifact() {
       });
 
       if (!workflowRuns.workflow_runs || workflowRuns.workflow_runs.length === 0) {
-        logger.info('没有找到成功的工作流运行');
+        logger.info('No successful workflow runs found');
         return null;
       }
 
-      // 获取最新成功运行的 Artifacts
+      // Get latest successfully run Artifacts
       workflowRun = workflowRuns.workflow_runs[0];
     }
     
-    logger.info(`找到最新的工作流运行: ${workflowRun.id}`);
+    logger.info(`Found latest workflow run: ${workflowRun.id}`);
 
-    // 等待一段时间，确保Artifact已经上传完成
-    logger.info('等待Artifact上传完成...');
+    // Wait for artifact upload to complete
+    logger.info('Waiting for Artifact upload to complete...');
     await new Promise(resolve => setTimeout(resolve, 10000));
 
-    // 获取工作流的Artifacts
+    // Get workflow Artifacts
     let artifacts = null;
     let artifactAttempts = 0;
-    const maxArtifactAttempts = 10; // 最多尝试10次，每次10秒
+    const maxArtifactAttempts = 10; // Max 10 attempts, 10 sec each
     
     while (artifactAttempts < maxArtifactAttempts && (!artifacts || !artifacts.artifacts || artifacts.artifacts.length === 0)) {
       artifactAttempts++;
-      logger.info(`尝试获取Artifacts，尝试 ${artifactAttempts}/${maxArtifactAttempts}...`);
+      logger.info(`Attempting to get Artifacts, attempt ${artifactAttempts}/${maxArtifactAttempts}...`);
       
       try {
         const response = await octokit.actions.listWorkflowRunArtifacts({
@@ -328,56 +328,56 @@ async function getLatestArtifact() {
         
         artifacts = response.data;
       } catch (error) {
-        logger.error(`获取Artifacts时出错 (尝试 ${artifactAttempts}/${maxArtifactAttempts}): ${error.message}`);
-        // 出错时继续尝试，不中断循环
+        logger.error(`Error getting Artifacts (attempt ${artifactAttempts}/${maxArtifactAttempts}): ${error.message}`);
+        // Continue attempts on error, don't break loop
       }
       
       if (!artifacts || !artifacts.artifacts || artifacts.artifacts.length === 0) {
-        logger.info('暂时没有找到Artifacts，等待10秒后重试...');
+        logger.info('No Artifacts found yet, waiting 10 seconds before retry...');
         await new Promise(resolve => setTimeout(resolve, 10000));
       }
     }
 
     if (!artifacts || !artifacts.artifacts || artifacts.artifacts.length === 0) {
-      logger.info('没有找到Artifacts，可能工作流没有生成Artifact');
+      logger.info('No Artifacts found, workflow may not have generated Artifact');
       return null;
     }
 
-    logger.info(`找到 ${artifacts.artifacts.length} 个Artifacts`);
+    logger.info(`Found ${artifacts.artifacts.length} Artifacts`);
 
-    // 查找 Account info Artifact
+    // Find Account info Artifact
     const accountInfoArtifact = artifacts.artifacts.find(artifact => 
       artifact.name.toLowerCase().includes('account info'));
 
     if (!accountInfoArtifact) {
-      logger.info('没有找到 Account info Artifact');
+      logger.info('Account info Artifact not found');
       return null;
     }
 
-    logger.info(`找到 Account info Artifact: ${accountInfoArtifact.id}`);
+    logger.info(`Found Account info Artifact: ${accountInfoArtifact.id}`);
     return accountInfoArtifact;
   } catch (error) {
-    logger.error('获取 Artifact 失败:', error);
+    logger.error('Failed to get Artifact:', error);
     return null;
   }
 }
 
-// 下载 Artifact
+// Download Artifact
 async function downloadArtifact(artifact) {
   let downloadAttempts = 0;
-  const maxDownloadAttempts = 5; // 最多尝试5次下载
+  const maxDownloadAttempts = 5; // Max 5 download attempts
   
   while (downloadAttempts < maxDownloadAttempts) {
     downloadAttempts++;
     try {
-      logger.info(`开始下载 Artifact: ${artifact.id}... (尝试 ${downloadAttempts}/${maxDownloadAttempts})`);
+      logger.info(`Starting Artifact download: ${artifact.id}... (attempt ${downloadAttempts}/${maxDownloadAttempts})`);
       ensureDirectoryExists(DOWNLOAD_DIR);
 
       const octokit = new Octokit({
         auth: GITHUB_TOKEN
       });
 
-      // 获取下载 URL
+      // Get download URL
       const { url } = await octokit.actions.downloadArtifact({
         owner: GITHUB_OWNER,
         repo: GITHUB_REPO,
@@ -385,29 +385,29 @@ async function downloadArtifact(artifact) {
         archive_format: 'zip'
       });
 
-      // 下载 zip 文件
+      // Download zip file
       const zipFilePath = path.join(DOWNLOAD_DIR, `${artifact.id}.zip`);
       const response = await axios({
         method: 'get',
         url: url,
         responseType: 'arraybuffer',
-        timeout: 60000 // 设置60秒超时
+        timeout: 60000 // 60 second timeout
       });
 
       fs.writeFileSync(zipFilePath, response.data);
-      logger.info(`Artifact 下载完成: ${zipFilePath}`);
+      logger.info(`Artifact download complete: ${zipFilePath}`);
       return zipFilePath;
     } catch (error) {
-      logger.error(`下载 Artifact 失败 (尝试 ${downloadAttempts}/${maxDownloadAttempts}): ${error.message}`);
+      logger.error(`Artifact download failed (attempt ${downloadAttempts}/${maxDownloadAttempts}): ${error.message}`);
       
       if (downloadAttempts >= maxDownloadAttempts) {
-        logger.error('达到最大尝试次数，放弃下载');
+        logger.error('Max attempts reached, giving up download');
         return null;
       }
       
-      // 等待一段时间后重试
-      const retryDelay = 10000; // 10秒
-      logger.info(`等待 ${retryDelay/1000} 秒后重试...`);
+      // Wait before retry
+      const retryDelay = 10000; // 10 seconds
+      logger.info(`Waiting ${retryDelay/1000} seconds before retry...`);
       await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
@@ -415,52 +415,52 @@ async function downloadArtifact(artifact) {
   return null;
 }
 
-// 解压 Artifact
+// Extract Artifact
 async function extractArtifact(zipFilePath) {
   let extractAttempts = 0;
-  const maxExtractAttempts = 3; // 最多尝试3次解压
+  const maxExtractAttempts = 3; // Max 3 extract attempts
   
   while (extractAttempts < maxExtractAttempts) {
     extractAttempts++;
     try {
-      logger.info(`开始解压 Artifact: ${zipFilePath}... (尝试 ${extractAttempts}/${maxExtractAttempts})`);
+      logger.info(`Starting Artifact extraction: ${zipFilePath}... (attempt ${extractAttempts}/${maxExtractAttempts})`);
       ensureDirectoryExists(EXTRACT_DIR);
 
       const zip = new AdmZip(zipFilePath);
       zip.extractAllTo(EXTRACT_DIR, true);
-      logger.info(`Artifact 解压完成: ${EXTRACT_DIR}`);
+      logger.info(`Artifact extraction complete: ${EXTRACT_DIR}`);
 
-      // 查找 token CSV 文件
+      // Find token CSV file
       const files = fs.readdirSync(EXTRACT_DIR);
       const tokenFile = files.find(file => file.startsWith('token_') && file.endsWith('.csv'));
 
       if (!tokenFile) {
-        logger.info('没有找到 token CSV 文件');
+        logger.info('Token CSV file not found');
         
         if (extractAttempts >= maxExtractAttempts) {
           return null;
         }
         
-        // 等待一段时间后重试
-        const retryDelay = 5000; // 5秒
-        logger.info(`等待 ${retryDelay/1000} 秒后重试...`);
+        // Wait before retry
+        const retryDelay = 5000; // 5 seconds
+        logger.info(`Waiting ${retryDelay/1000} seconds before retry...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
         continue;
       }
 
-      logger.info(`找到 token CSV 文件: ${tokenFile}`);
+      logger.info(`Found token CSV file: ${tokenFile}`);
       return path.join(EXTRACT_DIR, tokenFile);
     } catch (error) {
-      logger.error(`解压 Artifact 失败 (尝试 ${extractAttempts}/${maxExtractAttempts}): ${error.message}`);
+      logger.error(`Artifact extraction failed (attempt ${extractAttempts}/${maxExtractAttempts}): ${error.message}`);
       
       if (extractAttempts >= maxExtractAttempts) {
-        logger.error('达到最大尝试次数，放弃解压');
+        logger.error('Max attempts reached, giving up extraction');
         return null;
       }
       
-      // 等待一段时间后重试
-      const retryDelay = 5000; // 5秒
-      logger.info(`等待 ${retryDelay/1000} 秒后重试...`);
+      // Wait before retry
+      const retryDelay = 5000; // 5 seconds
+      logger.info(`Waiting ${retryDelay/1000} seconds before retry...`);
       await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
@@ -469,37 +469,37 @@ async function extractArtifact(zipFilePath) {
 }
 
 /**
- * 从CSV文件中提取cookies
- * @param {string} csvFilePath - CSV文件路径
- * @returns {Promise<string[]>} - 提取到的cookie数组
+ * Extract cookies from CSV file
+ * @param {string} csvFilePath - CSV file path
+ * @returns {Promise<string[]>} - Extracted cookie array
  */
 async function extractCookiesFromCsvFile(csvFilePath) {
   const maxExtractAttempts = 3;
   let attempt = 1;
   
   while (attempt <= maxExtractAttempts) {
-    logger.info(`尝试从CSV文件提取cookies (尝试 ${attempt}/${maxExtractAttempts})...`);
+    logger.info(`Attempting to extract cookies from CSV (attempt ${attempt}/${maxExtractAttempts})...`);
     
     try {
-      // 读取文件内容
+      // Read file content
       if (!fs.existsSync(csvFilePath)) {
-        logger.error(`CSV文件不存在: ${csvFilePath}`);
+        logger.error(`CSV file does not exist: ${csvFilePath}`);
         return [];
       }
       
-      // 读取文件内容并处理可能的换行符
+      // Read file content and handle possible newlines
       let fileContent = fs.readFileSync(csvFilePath, 'utf8');
       fileContent = fileContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
       
-      // 首先尝试直接从文件内容中提取所有可能的cookie
+      // First try to extract all possible cookies directly from file content
       const cookies = [];
       
-      // 1. 检查是否有JWT格式的token (新格式)
+      // 1. Check for JWT format token (new format)
       const jwtRegex = /ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
       const jwtMatches = fileContent.match(jwtRegex);
       
       if (jwtMatches && jwtMatches.length > 0) {
-        logger.info(`直接从文件内容中提取到 ${jwtMatches.length} 个JWT token格式的Cookie`);
+        logger.info(`Extracted ${jwtMatches.length} JWT token format cookies directly from file content`);
         jwtMatches.forEach(match => {
           if (!cookies.includes(match)) {
             cookies.push(match);
@@ -507,15 +507,15 @@ async function extractCookiesFromCsvFile(csvFilePath) {
         });
       }
       
-      // 2. 检查是否有旧格式的cookie
+      // 2. Check for old format cookies
       if (fileContent.includes('user_')) {
-        logger.info('文件包含旧格式cookie标识"user_"');
+        logger.info('File contains old format cookie identifier "user_"');
         
-        // 使用旧的提取函数尝试提取
+        // Try extraction using old extract function
         try {
           const oldFormatCookies = await extractCookiesFromCsv(csvFilePath);
           if (oldFormatCookies && oldFormatCookies.length > 0) {
-            logger.info(`通过提取模块获取到 ${oldFormatCookies.length} 个cookie`);
+            logger.info(`Got ${oldFormatCookies.length} cookies via extract module`);
             oldFormatCookies.forEach(cookie => {
               if (!cookies.includes(cookie)) {
                 cookies.push(cookie);
@@ -523,56 +523,56 @@ async function extractCookiesFromCsvFile(csvFilePath) {
             });
           }
         } catch (e) {
-          logger.warn('通过提取模块获取cookie失败:', e.message);
+          logger.warn('Failed to get cookies via extract module:', e.message);
         }
       }
       
-      // 3. 如果找到了cookie，返回结果
+      // 3. If cookies found, return result
       if (cookies.length > 0) {
         const newFormatCount = cookies.filter(c => c.startsWith('ey')).length;
         const oldFormatCount = cookies.filter(c => c.includes('%3A%3A')).length;
         
-        logger.info(`总共找到 ${cookies.length} 个cookie`);
-        logger.info(`新格式cookie(ey开头): ${newFormatCount}个`);
-        logger.info(`旧格式cookie(包含%3A%3A): ${oldFormatCount}个`);
-        logger.info(`其他格式cookie: ${cookies.length - newFormatCount - oldFormatCount}个`);
+        logger.info(`Total found ${cookies.length} cookies`);
+        logger.info(`New format cookies (ey prefix): ${newFormatCount}`);
+        logger.info(`Old format cookies (contains %3A%3A): ${oldFormatCount}`);
+        logger.info(`Other format cookies: ${cookies.length - newFormatCount - oldFormatCount}`);
         
         return cookies;
       }
       
-      logger.warn(`未能从文件中提取到任何cookie (尝试 ${attempt}/${maxExtractAttempts})`);
+      logger.warn(`Failed to extract any cookies from file (attempt ${attempt}/${maxExtractAttempts})`);
     } catch (error) {
-      logger.error(`从CSV文件提取cookies时出错 (尝试 ${attempt}/${maxExtractAttempts}):`, error);
+      logger.error(`Error extracting cookies from CSV (attempt ${attempt}/${maxExtractAttempts}):`, error);
     }
     
     attempt++;
     if (attempt <= maxExtractAttempts) {
-      logger.info(`等待5秒后重试...`);
+      logger.info(`Waiting 5 seconds before retry...`);
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
   
-  logger.error(`在 ${maxExtractAttempts} 次尝试后未能从CSV文件提取到cookies`);
+  logger.error(`Failed to extract cookies from CSV after ${maxExtractAttempts} attempts`);
   return [];
 }
 
-// 将新的有效cookie添加到系统中
+// Add new valid cookies to system
 function addNewCookiesToSystem(apiKey, newCookies) {
   try {
-    logger.info(`准备添加 ${newCookies.length} 个新cookie到系统中`);
+    logger.info(`Preparing to add ${newCookies.length} new cookies to system`);
     
-    // 获取当前的cookies
+    // Get current cookies
     const currentCookies = keyManager.getAllCookiesForApiKey(apiKey) || [];
-    logger.info(`当前API密钥 ${apiKey} 有 ${currentCookies.length} 个cookies`);
+    logger.info(`API key ${apiKey} has ${currentCookies.length} cookies`);
     
-    // 获取无效的cookies
+    // Get invalid cookies
     const invalidCookies = keyManager.getInvalidCookies() || [];
-    logger.info(`系统中有 ${invalidCookies.length || 0} 个无效cookies`);
+    logger.info(`System has ${invalidCookies.length || 0} invalid cookies`);
     
-    // 过滤出新的有效cookie
+    // Filter out new valid cookies
     let newValidCookies = [];
     
-    // 检查invalidCookies的类型并相应处理
+    // Check invalidCookies type and handle accordingly
     if (invalidCookies instanceof Set) {
       newValidCookies = newCookies.filter(cookie => 
         !currentCookies.includes(cookie) && !invalidCookies.has(cookie)
@@ -582,37 +582,37 @@ function addNewCookiesToSystem(apiKey, newCookies) {
         !currentCookies.includes(cookie) && !invalidCookies.includes(cookie)
       );
     } else if (invalidCookies && typeof invalidCookies === 'object') {
-      // 如果是普通对象，检查cookie是否作为键存在
+      // If plain object, check if cookie exists as key
       newValidCookies = newCookies.filter(cookie => 
         !currentCookies.includes(cookie) && !(cookie in invalidCookies)
       );
     } else {
-      // 如果invalidCookies不是预期的类型，只过滤当前cookies
+      // If invalidCookies not expected type, only filter current cookies
       newValidCookies = newCookies.filter(cookie => !currentCookies.includes(cookie));
     }
     
-    logger.info(`过滤后有 ${newValidCookies.length} 个新的有效cookies`);
+    logger.info(`After filtering: ${newValidCookies.length} new valid cookies`);
     
-    // 验证cookie是否完整
+    // Validate cookie completeness
     const validatedCookies = newValidCookies.filter(cookie => {
-      // 检查是否是新格式的JWT token (ey开头)
+      // Check if new format JWT token (ey prefix)
       if (cookie.startsWith('ey') && cookie.includes('.')) {
         const parts = cookie.split('.');
-        // 检查JWT是否包含三个部分
+        // Check if JWT has three parts
         if (parts.length !== 3) {
-          logger.warn(`跳过不完整的JWT cookie (新格式): ${cookie}`);
+          logger.warn(`Skipping incomplete JWT cookie (new format): ${cookie}`);
           return false;
         }
         return true;
       }
-      // 检查旧格式cookie是否包含JWT的三个部分
+      // Check if old format cookie contains JWT's three parts
       else if (cookie.includes('%3A%3A')) {
         const parts = cookie.split('%3A%3A');
         if (parts.length === 2) {
           const jwt = parts[1];
-          // 检查JWT是否包含点（表示JWT的三个部分）
+          // Check if JWT contains dots (indicating three parts)
           if (!jwt.includes('.') || jwt.split('.').length !== 3) {
-            logger.warn(`跳过不完整的cookie (旧格式): ${cookie}`);
+            logger.warn(`Skipping incomplete cookie (old format): ${cookie}`);
             return false;
           }
         }
@@ -620,185 +620,185 @@ function addNewCookiesToSystem(apiKey, newCookies) {
       return true;
     });
     
-    logger.info(`验证完整性后有 ${validatedCookies.length} 个有效cookies`);
+    logger.info(`After validation: ${validatedCookies.length} valid cookies`);
     
     if (validatedCookies.length > 0) {
-      // 添加新的有效cookie到系统
+      // Add new valid cookies to system
       keyManager.addOrUpdateApiKey(apiKey, [...currentCookies, ...validatedCookies]);
-      logger.info(`成功添加 ${validatedCookies.length} 个新cookie到API密钥 ${apiKey}`);
-      return validatedCookies.length; // 返回添加的cookie数量
+      logger.info(`Successfully added ${validatedCookies.length} new cookies to API key ${apiKey}`);
+      return validatedCookies.length; // Return count of cookies added
     } else {
-      logger.info(`没有新的有效cookie需要添加到API密钥 ${apiKey}`);
-      return 0; // 没有添加cookie，返回0
+      logger.info(`No new valid cookies to add to API key ${apiKey}`);
+      return 0; // No cookies added, return 0
     }
   } catch (error) {
-    logger.error('添加新cookie到系统时出错:', error);
-    return 0; // 出错时返回0
+    logger.error('Error adding new cookies to system:', error);
+    return 0; // Return 0 on error
   }
 }
 
-// 清理临时文件
+// Clean up temporary files
 function cleanupTempFiles() {
   try {
-    logger.info('开始清理临时文件...');
+    logger.info('Starting temporary file cleanup...');
     
-    // 清理下载目录
+    // Clean download directory
     if (fs.existsSync(DOWNLOAD_DIR)) {
       fs.readdirSync(DOWNLOAD_DIR).forEach(file => {
         fs.unlinkSync(path.join(DOWNLOAD_DIR, file));
       });
     }
     
-    // 清理解压目录
+    // Clean extract directory
     if (fs.existsSync(EXTRACT_DIR)) {
       fs.readdirSync(EXTRACT_DIR).forEach(file => {
         fs.unlinkSync(path.join(EXTRACT_DIR, file));
       });
     }
     
-    logger.info('临时文件清理完成');
+    logger.info('Temporary file cleanup complete');
   } catch (error) {
-    logger.error('清理临时文件失败:', error);
+    logger.error('Failed to clean temporary files:', error);
   }
 }
 
-// 检查 API Key 是否需要补充 Cookie
+// Check if API Key needs more Cookies
 function checkApiKeyNeedRefresh(apiKey, minCookieCount = config.refresh.minCookieCount) {
   const cookies = keyManager.getAllCookiesForApiKey(apiKey);
   return cookies.length < minCookieCount;
 }
 
-// 将现有cookie全部设为无效并从API Key中移除
+// Mark all existing cookies as invalid and remove from API Key
 function markExistingCookiesAsInvalid(apiKey) {
   try {
-    // 获取当前API Key的所有cookie
+    // Get all cookies for current API Key
     const currentCookies = keyManager.getAllCookiesForApiKey(apiKey) || [];
-    logger.info(`正在将API Key ${apiKey} 的 ${currentCookies.length} 个现有cookie标记为无效...`);
+    logger.info(`Marking ${currentCookies.length} existing cookies of API Key ${apiKey} as invalid...`);
     
-    // 如果没有cookie，直接返回
+    // If no cookies, return directly
     if (currentCookies.length === 0) {
-      logger.info(`API Key ${apiKey} 没有现有cookie，无需标记为无效`);
+      logger.info(`API Key ${apiKey} has no existing cookies, nothing to mark invalid`);
       return 0;
     }
     
-    // 获取无效cookie列表
+    // Get invalid cookies list
     const invalidCookies = keyManager.getInvalidCookies();
     let markedCount = 0;
     
-    // 遍历cookie并添加到无效列表
+    // Iterate cookies and add to invalid list
     for (const cookie of currentCookies) {
-      // 将cookie添加到无效集合中
+      // Add cookie to invalid set
       if (invalidCookies instanceof Set) {
         invalidCookies.add(cookie);
       }
       markedCount++;
     }
     
-    // 保存无效cookie到文件
+    // Save invalid cookies to file
     keyManager.saveInvalidCookiesToFile();
     
-    // 清空当前API Key的cookie列表
+    // Clear current API Key cookie list
     keyManager.addOrUpdateApiKey(apiKey, []);
     
-    // 保存更新后的API Keys
+    // Save updated API Keys
     keyManager.saveApiKeysToFile();
     
-    logger.info(`已将API Key ${apiKey} 的 ${markedCount} 个cookie标记为无效并从API Key中移除`);
+    logger.info(`Marked ${markedCount} cookies of API Key ${apiKey} as invalid and removed from API Key`);
     return markedCount;
   } catch (error) {
-    logger.error(`标记现有cookie为无效时出错:`, error);
+    logger.error(`Error marking existing cookies as invalid:`, error);
     return 0;
   }
 }
 
-// 主函数：自动刷新 Cookie
+// Main function: auto refresh Cookie
 async function autoRefreshCookies(apiKey, minCookieCount = config.refresh.minCookieCount) {
-  logger.info(`开始自动刷新 Cookie，目标 API Key: ${apiKey}，最小 Cookie 数量: ${minCookieCount}`);
+  logger.info(`Starting auto Cookie refresh, target API Key: ${apiKey}, min Cookie count: ${minCookieCount}`);
   
   try {
-    // 检查是否需要刷新
+    // Check if refresh needed
     if (!checkApiKeyNeedRefresh(apiKey, minCookieCount)) {
-      logger.info(`API Key ${apiKey} 的 Cookie 数量足够，不需要刷新`);
+      logger.info(`API Key ${apiKey} has enough Cookies, no refresh needed`);
       return {
         success: true,
-        message: '当前 Cookie 数量足够，不需要刷新',
+        message: 'Current Cookie count sufficient, no refresh needed',
         refreshed: 0
       };
     }
     
-    // 获取最新的 Artifact
+    // Get latest Artifact
     const artifact = await getLatestArtifact();
     if (!artifact) {
       return {
         success: false,
-        message: '获取 Artifact 失败',
+        message: 'Failed to get Artifact',
         refreshed: 0
       };
     }
     
-    // 下载 Artifact
+    // Download Artifact
     const zipFilePath = await downloadArtifact(artifact);
     if (!zipFilePath) {
       return {
         success: false,
-        message: '下载 Artifact 失败',
+        message: 'Failed to download Artifact',
         refreshed: 0
       };
     }
     
-    // 解压 Artifact
+    // Extract Artifact
     const csvFilePath = await extractArtifact(zipFilePath);
     if (!csvFilePath) {
       return {
         success: false,
-        message: '解压 Artifact 失败',
+        message: 'Failed to extract Artifact',
         refreshed: 0
       };
     }
     
-    // 提取 Cookie
+    // Extract Cookie
     const cookies = await extractCookiesFromCsvFile(csvFilePath);
     if (cookies.length === 0) {
       return {
         success: false,
-        message: '没有找到有效的 Cookie',
+        message: 'No valid Cookies found',
         refreshed: 0
       };
     }
     
-    // 分析提取到的cookie格式
+    // Analyze extracted cookie formats
     const newFormatCookies = cookies.filter(cookie => cookie.startsWith('ey'));
     const oldFormatCookies = cookies.filter(cookie => cookie.includes('%3A%3A'));
-    logger.info(`提取到 ${newFormatCookies.length} 个新格式cookie(ey开头)`);
-    logger.info(`提取到 ${oldFormatCookies.length} 个旧格式cookie(包含%3A%3A)`);
+    logger.info(`Extracted ${newFormatCookies.length} new format cookies (ey prefix)`);
+    logger.info(`Extracted ${oldFormatCookies.length} old format cookies (contains %3A%3A)`);
     
-    // 根据配置决定是否将现有cookie标记为无效
+    // Based on config, decide whether to mark existing cookies as invalid
     const refreshMode = process.env.COOKIE_REFRESH_MODE || 'append';
     
     if (refreshMode === 'replace') {
-      // 将现有cookie标记为无效并从API Key中移除
-      logger.info('使用替换模式: 将现有cookie标记为无效');
+      // Mark existing cookies as invalid and remove from API Key
+      logger.info('Using replace mode: marking existing cookies as invalid');
       markExistingCookiesAsInvalid(apiKey);
     } else {
-      logger.info('使用追加模式: 保留现有cookie，只添加新cookie');
+      logger.info('Using append mode: keep existing cookies, only add new ones');
     }
     
-    // 添加新的 Cookie 到系统
+    // Add new Cookies to system
     const addedCount = addNewCookiesToSystem(apiKey, cookies);
     
-    // 清理临时文件
+    // Clean up temporary files
     cleanupTempFiles();
     
     return {
       success: true,
-      message: `成功添加 ${addedCount} 个新 Cookie (新格式: ${newFormatCookies.length}, 旧格式: ${oldFormatCookies.length})`,
+      message: `Successfully added ${addedCount} new Cookies (new format: ${newFormatCookies.length}, old format: ${oldFormatCookies.length})`,
       refreshed: addedCount
     };
   } catch (error) {
-    logger.error('自动刷新 Cookie 失败:', error);
+    logger.error('Auto Cookie refresh failed:', error);
     return {
       success: false,
-      message: `刷新失败: ${error.message}`,
+      message: `Refresh failed: ${error.message}`,
       refreshed: 0
     };
   }

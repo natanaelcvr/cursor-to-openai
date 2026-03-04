@@ -10,8 +10,8 @@ let mainProxyLogStream = null;
 let othersProxyLogStream = null;
 
 /**
- * 获取当前系统平台
- * @returns {string} 平台标识
+ * Get current system platform
+ * @returns {string} Platform identifier
  */
 function detectPlatform() {
   const platform = os.platform();
@@ -25,16 +25,16 @@ function detectPlatform() {
     return 'android_arm64';
   }
   
-  // 默认返回linux版本
-  logger.warn(`未识别的平台: ${platform} ${arch}，将使用linux_x64代理`);
+  // Default to linux version
+  logger.warn(`Unrecognized platform: ${platform} ${arch}, will use linux_x64 proxy`);
   return 'linux_x64';
 }
 
 /**
- * 获取代理服务器可执行文件路径
- * @param {string} platform 平台类型
- * @param {string} proxyType 代理类型 ('main' 或 'others')
- * @returns {string} 可执行文件路径
+ * Get proxy server executable file path
+ * @param {string} platform Platform type
+ * @param {string} proxyType Proxy type ('main' or 'others')
+ * @returns {string} Executable file path
  */
 function getProxyExecutablePath(platform, proxyType = 'main') {
   let proxyDir;
@@ -45,7 +45,7 @@ function getProxyExecutablePath(platform, proxyType = 'main') {
     proxyDir = path.join(process.cwd(), 'src', 'proxy');
   }
   
-  // 根据平台选择可执行文件
+  // Select executable based on platform
   switch (platform) {
     case 'windows_x64':
       return path.join(proxyDir, 'cursor_proxy_server_windows_amd64.exe');
@@ -54,52 +54,52 @@ function getProxyExecutablePath(platform, proxyType = 'main') {
     case 'android_arm64':
       return path.join(proxyDir, 'cursor_proxy_server_android_arm64');
     default:
-      logger.warn(`未知平台: ${platform}，将使用linux_x64代理`);
+      logger.warn(`Unknown platform: ${platform}, will use linux_x64 proxy`);
       return path.join(proxyDir, 'cursor_proxy_server_linux_amd64');
   }
 }
 
 /**
- * 创建并打开代理服务器日志文件
- * @param {string} platform 平台类型
- * @param {string} proxyType 代理类型 ('main' 或 'others')
- * @returns {fs.WriteStream} 日志文件写入流
+ * Create and open proxy server log file
+ * @param {string} platform Platform type
+ * @param {string} proxyType Proxy type ('main' or 'others')
+ * @returns {fs.WriteStream} Log file write stream
  */
 function createProxyLogFile(platform, proxyType = 'main') {
   try {
-    // 确保logs目录存在
+    // Ensure logs directory exists
     const logsDir = path.join(process.cwd(), 'logs');
     if (!fs.existsSync(logsDir)) {
       fs.mkdirSync(logsDir, { recursive: true });
     }
     
-    // 创建日志文件名，包含日期和平台信息
+    // Create log file name with date and platform info
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
     const logFileName = `proxy_server_${proxyType}_${platform}_${dateStr}.log`;
     const logFilePath = path.join(logsDir, logFileName);
     
-    // 创建日志文件流
+    // Create log file stream
     const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
     
-    // 写入日志文件头
-    const headerLine = `\n\n========== ${proxyType}代理服务器日志 - ${platform} - ${now.toISOString()} ==========\n\n`;
+    // Write log file header
+    const headerLine = `\n\n========== ${proxyType} proxy server log - ${platform} - ${now.toISOString()} ==========\n\n`;
     logStream.write(headerLine);
     
-    logger.info(`${proxyType}代理服务器详细日志将记录到: ${logFilePath}`);
+    logger.info(`${proxyType} proxy server detailed logs will be recorded to: ${logFilePath}`);
     
     return logStream;
   } catch (error) {
-    logger.error(`创建${proxyType}代理服务器日志文件失败: ${error.message}`);
+    logger.error(`Failed to create ${proxyType} proxy server log file: ${error.message}`);
     return null;
   }
 }
 
 /**
- * 写入日志到代理服务器日志文件
- * @param {fs.WriteStream} logStream 日志文件流
- * @param {string} message 日志消息
- * @param {string} type 日志类型 (stdout 或 stderr)
+ * Write log to proxy server log file
+ * @param {fs.WriteStream} logStream Log file stream
+ * @param {string} message Log message
+ * @param {string} type Log type (stdout or stderr)
  */
 function writeToProxyLog(logStream, message, type = 'stdout') {
   if (!logStream) return;
@@ -109,44 +109,44 @@ function writeToProxyLog(logStream, message, type = 'stdout') {
     const logLine = `[${timestamp}] [${type}] ${message}\n`;
     logStream.write(logLine);
   } catch (error) {
-    logger.error(`写入代理服务器日志失败: ${error.message}`);
+    logger.error(`Failed to write to proxy server log: ${error.message}`);
   }
 }
 
 /**
- * 启动单个代理服务器
- * @param {string} platform 平台类型
- * @param {string} proxyType 代理类型 ('main' 或 'others')
- * @param {number} port 代理服务器端口
- * @returns {object} 包含进程和日志流的对象
+ * Start single proxy server
+ * @param {string} platform Platform type
+ * @param {string} proxyType Proxy type ('main' or 'others')
+ * @param {number} port Proxy server port
+ * @returns {object} Object containing process and log stream
  */
 function startSingleProxyServer(platform, proxyType, port) {
   try {
-    // 获取可执行文件路径
+    // Get executable path
     const execPath = getProxyExecutablePath(platform, proxyType);
     
-    // 检查文件是否存在
+    // Check if file exists
     if (!fs.existsSync(execPath)) {
-      logger.error(`${proxyType}代理服务器可执行文件不存在: ${execPath}`);
+      logger.error(`${proxyType} proxy server executable not found: ${execPath}`);
       return { process: null, logStream: null };
     }
     
-    // 在Linux/Android上，设置可执行权限
+    // On Linux/Android, set executable permissions
     if (platform !== 'windows_x64') {
       try {
         fs.chmodSync(execPath, '755');
       } catch (err) {
-        logger.warn(`无法设置${proxyType}代理服务器可执行权限: ${err.message}`);
+        logger.warn(`Could not set ${proxyType} proxy server executable permissions: ${err.message}`);
       }
     }
     
-    // 创建代理服务器日志文件
+    // Create proxy server log file
     const logStream = createProxyLogFile(platform, proxyType);
     
-    // 启动代理服务器进程
-    logger.info(`正在启动${platform}平台的${proxyType}代理服务器: ${execPath}，端口: ${port}`);
+    // Start proxy server process
+    logger.info(`Starting ${proxyType} proxy server on ${platform}: ${execPath}, port: ${port}`);
     
-    // 添加端口参数
+    // Add port parameter
     const args = port ? [`--port=${port}`] : [];
     
     const proxyProcess = spawn(execPath, args, {
@@ -154,7 +154,7 @@ function startSingleProxyServer(platform, proxyType, port) {
       stdio: ['ignore', 'pipe', 'pipe']
     });
     
-    // 记录代理服务器的详细日志到文件
+    // Record proxy server detailed logs to file
     proxyProcess.stdout.on('data', (data) => {
       const output = data.toString().trim();
       writeToProxyLog(logStream, output, 'stdout');
@@ -164,134 +164,134 @@ function startSingleProxyServer(platform, proxyType, port) {
       const errorOutput = data.toString().trim();
       writeToProxyLog(logStream, errorOutput, 'stderr');
       
-      // 只在启动失败时记录错误信息到控制台
+      // Only log errors to console on startup failure
       if (!proxyProcess.startSuccessful && errorOutput.includes('error')) {
-        logger.error(`${proxyType}代理服务器启动错误: ${errorOutput.split('\n')[0]}`);
+        logger.error(`${proxyType} proxy server startup error: ${errorOutput.split('\n')[0]}`);
       }
     });
     
     proxyProcess.on('error', (err) => {
-      logger.error(`${proxyType}代理服务器启动失败: ${err.message}`);
-      writeToProxyLog(logStream, `启动失败: ${err.message}`, 'error');
+      logger.error(`${proxyType} proxy server failed to start: ${err.message}`);
+      writeToProxyLog(logStream, `Startup failed: ${err.message}`, 'error');
       return { process: null, logStream: null };
     });
     
     proxyProcess.on('close', (code) => {
-      // 只有在非正常退出时记录到控制台
+      // Only log to console on abnormal exit
       if (code !== 0) {
-        logger.warn(`${proxyType}代理服务器已退出，代码: ${code}`);
+        logger.warn(`${proxyType} proxy server exited, code: ${code}`);
       }
       
-      writeToProxyLog(logStream, `进程已退出，退出代码: ${code}`, 'info');
+      writeToProxyLog(logStream, `Process exited, exit code: ${code}`, 'info');
       
-      // 关闭日志文件
+      // Close log file
       if (logStream) {
         logStream.end();
       }
     });
     
-    // 等待一段时间确保启动成功
+    // Wait to ensure startup success
     setTimeout(() => {
       if (proxyProcess && proxyProcess.exitCode === null) {
         proxyProcess.startSuccessful = true;
-        logger.info(`${proxyType}代理服务器已成功启动`);
-        writeToProxyLog(logStream, `${proxyType}代理服务器已成功启动`, 'info');
+        logger.info(`${proxyType} proxy server started successfully`);
+        writeToProxyLog(logStream, `${proxyType} proxy server started successfully`, 'info');
       } else {
-        logger.error(`${proxyType}代理服务器启动失败或异常退出`);
-        writeToProxyLog(logStream, `${proxyType}代理服务器启动失败或异常退出`, 'error');
+        logger.error(`${proxyType} proxy server failed to start or exited abnormally`);
+        writeToProxyLog(logStream, `${proxyType} proxy server failed to start or exited abnormally`, 'error');
       }
     }, 1000);
     
     return { process: proxyProcess, logStream };
   } catch (error) {
-    logger.error(`启动${proxyType}代理服务器出错: ${error.message}`);
+    logger.error(`Error starting ${proxyType} proxy server: ${error.message}`);
     return { process: null, logStream: null };
   }
 }
 
 /**
- * 启动代理服务器
- * @returns {boolean} 是否成功启动
+ * Start proxy server
+ * @returns {boolean} Whether startup succeeded
  */
 function startProxyServer() {
   try {
-    // 检查是否启用代理
+    // Check if proxy is enabled
     const useTlsProxy = process.env.USE_TLS_PROXY === 'true';
     if (!useTlsProxy) {
-      logger.warn('TLS代理服务器未启用，跳过启动');
+      logger.warn('TLS proxy server not enabled, skipping startup');
       return true;
     }
     
-    // 检查是否启用辅助代理服务器
+    // Check if auxiliary proxy server is enabled
     const useOthersProxy = process.env.USE_OTHERS_PROXY === 'true';
     
-    // 确定要使用的平台
+    // Determine platform to use
     let platform = process.env.PROXY_PLATFORM || 'auto';
     if (platform === 'auto') {
       platform = detectPlatform();
     }
     
-    // 启动主代理服务器（默认使用8080端口）
+    // Start main proxy server (default port 8080)
     const mainProxy = startSingleProxyServer(platform, 'main', 8080);
     mainProxyProcess = mainProxy.process;
     mainProxyLogStream = mainProxy.logStream;
     
-    // 根据配置决定是否启动辅助代理服务器
+    // Start auxiliary proxy server based on config
     if (useOthersProxy) {
-      logger.info('辅助代理服务器已启用，正在启动...');
-      // 启动others代理服务器（端口 10654）
+      logger.info('Auxiliary proxy server enabled, starting...');
+      // Start others proxy server (port 10654)
       const othersProxy = startSingleProxyServer(platform, 'others', 10654);
       othersProxyProcess = othersProxy.process;
       othersProxyLogStream = othersProxy.logStream;
       
-      // 如果辅助代理启动失败，记录警告
+      // If auxiliary proxy fails to start, log warning
       if (!othersProxyProcess) {
-        logger.warn('辅助代理服务器启动失败');
+        logger.warn('Auxiliary proxy server failed to start');
       } else {
-        logger.info('辅助代理服务器启动成功');
+        logger.info('Auxiliary proxy server started successfully');
       }
     } else {
-      logger.warn('辅助代理服务器未启用，跳过启动');
+      logger.warn('Auxiliary proxy server not enabled, skipping startup');
     }
     
-    // 如果主代理启动失败，记录警告
+    // If main proxy fails to start, log warning
     if (!mainProxyProcess) {
-      logger.warn('主代理服务器启动失败');
+      logger.warn('Main proxy server failed to start');
       return false;
     }
     
     return true;
   } catch (error) {
-    logger.error(`启动代理服务器出错: ${error.message}`);
+    logger.error(`Error starting proxy server: ${error.message}`);
     return false;
   }
 }
 
 /**
- * 停止代理服务器
+ * Stop proxy server
  */
 function stopProxyServer() {
   const stopSingleProxy = (proxyProcess, logStream, proxyType) => {
     if (proxyProcess) {
-      logger.info(`正在停止${proxyType}代理服务器...`);
-      writeToProxyLog(logStream, `正在停止${proxyType}代理服务器`, 'info');
+      logger.info(`Stopping ${proxyType} proxy server...`);
+      writeToProxyLog(logStream, `Stopping ${proxyType} proxy server`, 'info');
       
-      // 在Windows上，使用taskkill强制终止
+      // On Windows, use taskkill to force terminate
       if (os.platform() === 'win32') {
         try {
           spawn('taskkill', ['/pid', proxyProcess.pid, '/f', '/t']);
         } catch (err) {
-          logger.error(`使用taskkill终止${proxyType}代理进程失败: ${err.message}`);
-          writeToProxyLog(logStream, `使用taskkill终止${proxyType}代理进程失败: ${err.message}`, 'error');
+          logger.error(`Failed to terminate ${proxyType} proxy process with taskkill: ${err.message}`);
+          writeToProxyLog(logStream, `Failed to terminate ${proxyType} proxy process with taskkill: ${err.message}`, 'error');
         }
       } else {
-        // 在Linux/Mac上直接kill
+        // On Linux/Mac, kill directly
         proxyProcess.kill('SIGTERM');
       }
       
-      // 允许一些时间写入最后的日志
+      // Allow time to write final logs
       setTimeout(() => {
-        // 关闭日志文件
+        // Close log file
         if (logStream) {
           logStream.end();
         }
@@ -299,19 +299,19 @@ function stopProxyServer() {
     }
   };
   
-  // 停止主代理服务器
+  // Stop main proxy server
   stopSingleProxy(mainProxyProcess, mainProxyLogStream, 'main');
   mainProxyProcess = null;
   mainProxyLogStream = null;
   
-  // 停止others代理服务器
+  // Stop others proxy server
   stopSingleProxy(othersProxyProcess, othersProxyLogStream, 'others');
   othersProxyProcess = null;
   othersProxyLogStream = null;
 }
 
-// 导出模块
+// Export module
 module.exports = {
   startProxyServer,
   stopProxyServer
-}; 
+};

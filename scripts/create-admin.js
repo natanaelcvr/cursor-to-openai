@@ -5,23 +5,23 @@ const readline = require('readline');
 
 const ADMIN_FILE = path.join(__dirname, '../data/admin.json');
 
-// 创建readline接口
+// Create readline interface
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
 
-// 生成盐值
+// Generate salt
 function generateSalt() {
     return crypto.randomBytes(16).toString('hex');
 }
 
-// 使用盐值哈希密码
+// Hash password with salt
 function hashPassword(password, salt) {
     return crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
 }
 
-// 提示用户输入
+// Prompt user for input
 function question(query) {
     return new Promise((resolve) => {
         rl.question(query, resolve);
@@ -30,17 +30,17 @@ function question(query) {
 
 async function main() {
     try {
-        console.log('创建管理员账户\n');
+        console.log('Create admin account\n');
 
-        // 获取用户输入
-        const username = await question('请输入管理员用户名: ');
-        const password = await question('请输入管理员密码: ');
+        // Get user input
+        const username = await question('Enter admin username: ');
+        const password = await question('Enter admin password: ');
 
-        // 生成盐值和密码哈希
+        // Generate salt and password hash
         const salt = generateSalt();
         const hash = hashPassword(password, salt);
 
-        // 创建管理员数据
+        // Create admin data
         const adminData = {
             admin: {
                 username,
@@ -49,20 +49,20 @@ async function main() {
             }
         };
 
-        // 确保data目录存在
+        // Ensure data directory exists
         const dataDir = path.dirname(ADMIN_FILE);
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir, { recursive: true });
         }
 
-        // 写入文件
+        // Write to file
         fs.writeFileSync(ADMIN_FILE, JSON.stringify(adminData, null, 2));
 
-        console.log('\n管理员账户创建成功！');
-        console.log('请妥善保管账户信息，不要将admin.json文件提交到版本控制系统。');
+        console.log('\nAdmin account created successfully!');
+        console.log('Please keep account information secure. Do not commit admin.json to version control.');
 
     } catch (error) {
-        console.error('创建管理员账户失败:', error);
+        console.error('Failed to create admin account:', error);
     } finally {
         rl.close();
     }

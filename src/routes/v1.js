@@ -4,7 +4,7 @@ const { fetch, ProxyAgent, Agent } = require('undici');
 
 const $root = require('../proto/message.js');
 const { v4: uuidv4, v5: uuidv5 } = require('uuid');
-const { generateCursorBody, chunkToUtf8String, generateHashed64Hex, generateCursorChecksum } = require('../utils/utils.js');
+const { generateCursorBody, chunkToUtf8String, generateHashed64Hex, generateCursorChecksum, parseToolCalls, stripToolCalls } = require('../utils/utils.js');
 const keyManager = require('../utils/keyManager.js');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -13,7 +13,9 @@ const config = require('../config/config');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
 
-// 存储刷新状态的变量
+const CURSOR_CLIENT_VERSION = process.env.CURSOR_CLIENT_VERSION || "2.5.20";
+
+// Variable to store refresh status
 let refreshStatus = {
   isRunning: false,
   status: 'idle', // idle, running, completed, failed
@@ -23,10 +25,10 @@ let refreshStatus = {
   error: null
 };
 
-// 储存当前正在处理的Cookie获取请求
+// Store currently processing Cookie retrieval requests
 const pendingCookieRequests = new Map();
 
-// 检查是否已有管理员账号
+// Check if admin account exists
 router.get('/admin/check', (req, res) => {
   try {
     return res.json({
@@ -34,7 +36,7 @@ router.get('/admin/check', (req, res) => {
       exists: admin.hasAdmin()
     });
   } catch (error) {
-    logger.error('检查管理员账号失败:', error);
+    logger.error('Failed to check admin account:', error);
     return res.status(500).json({
       success: false,
       message: error.message
@@ -42,7 +44,7 @@ router.get('/admin/check', (req, res) => {
   }
 });
 
-// 注册管理员
+// Register admin
 router.post('/admin/register', (req, res) => {
   try {
     const { username, password } = req.body;
@@ -50,7 +52,7 @@ router.post('/admin/register', (req, res) => {
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: '用户名和密码不能为空'
+        message: 'Username and password cannot be empty'
       });
     }
     
@@ -58,11 +60,11 @@ router.post('/admin/register', (req, res) => {
     
     return res.json({
       success: true,
-      message: '注册成功',
+      message: 'Registration successful',
       token
     });
   } catch (error) {
-    logger.error('注册管理员失败:', error);
+    logger.error('Failed to register admin:', error);
     return res.status(400).json({
       success: false,
       message: error.message
@@ -70,7 +72,7 @@ router.post('/admin/register', (req, res) => {
   }
 });
 
-// 管理员登录
+// Admin login
 router.post('/admin/login', (req, res) => {
   try {
     const { username, password } = req.body;
@@ -78,7 +80,7 @@ router.post('/admin/login', (req, res) => {
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: '用户名和密码不能为空'
+        message: 'Username and password cannot be empty'
       });
     }
     
@@ -86,11 +88,11 @@ router.post('/admin/login', (req, res) => {
     
     return res.json({
       success: true,
-      message: '登录成功',
+      message: 'Login successful',
       token
     });
   } catch (error) {
-    logger.error('登录失败:', error);
+    logger.error('Login failed:', error);
     return res.status(400).json({
       success: false,
       message: error.message
@@ -98,14 +100,14 @@ router.post('/admin/login', (req, res) => {
   }
 });
 
-// 验证token
+// Verify token
 router.get('/admin/verify', (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        message: '未提供认证token'
+        message: 'Auth token not provided'
       });
     }
     
@@ -114,7 +116,7 @@ router.get('/admin/verify', (req, res) => {
     
     return res.json(result);
   } catch (error) {
-    logger.error('验证token失败:', error);
+    logger.error('Failed to verify token:', error);
     return res.status(401).json({
       success: false,
       message: error.message
@@ -122,7 +124,7 @@ router.get('/admin/verify', (req, res) => {
   }
 });
 
-// 添加API key管理路由
+// Add API key management route
 router.post("/api-keys", async (req, res) => {
   try {
     const { apiKey, cookieValues } = req.body;
@@ -147,12 +149,12 @@ router.post("/api-keys", async (req, res) => {
   }
 });
 
-// 获取所有API Keys
+// Get all API Keys
 router.get("/api-keys", async (req, res) => {
   try {
-    logger.info('收到获取API Keys请求');
+    logger.info('Received get API Keys request');
     const apiKeys = keyManager.getAllApiKeys();
-    logger.info('获取到的API Keys:', apiKeys);
+    logger.info('Fetched API Keys:', apiKeys);
     
     const result = {
       success: true,
@@ -161,11 +163,11 @@ router.get("/api-keys", async (req, res) => {
         cookieCount: keyManager.getAllCookiesForApiKey(apiKey).length,
       })),
     };
-    logger.info('返回结果:', result);
+    logger.info('Return result:', result);
     
     return res.json(result);
   } catch (error) {
-    logger.error('获取API Keys失败:', error);
+    logger.error('Failed to get API Keys:', error);
     return res.status(500).json({
       error: 'Internal server error',
       message: error.message
@@ -173,7 +175,7 @@ router.get("/api-keys", async (req, res) => {
   }
 });
 
-// 删除API key
+// Delete API key
 router.delete("/api-keys/:apiKey", async (req, res) => {
   try {
     const { apiKey } = req.params;
@@ -192,21 +194,21 @@ router.delete("/api-keys/:apiKey", async (req, res) => {
   }
 });
 
-// 获取特定API Key的Cookie值
+// Get Cookie values for specific API Key
 router.get("/api-keys/:apiKey/cookies", async (req, res) => {
   try {
     const { apiKey } = req.params;
-    logger.info(`收到获取API Key ${apiKey}的Cookie值请求`);
+    logger.info(`Received get Cookie request for API Key ${apiKey}`);
     
     const cookies = keyManager.getAllCookiesForApiKey(apiKey);
-    logger.info(`API Key ${apiKey}的Cookie值:`, cookies);
+    logger.info(`API Key ${apiKey} Cookie values:`, cookies);
     
     return res.json({
       success: true,
       cookies: cookies
     });
   } catch (error) {
-    logger.error(`获取API Key ${req.params.apiKey}的Cookie值失败:`, error);
+    logger.error(`Failed to get Cookie for API Key ${req.params.apiKey}:`, error);
     return res.status(500).json({
       error: 'Internal server error',
       message: error.message
@@ -214,7 +216,7 @@ router.get("/api-keys/:apiKey/cookies", async (req, res) => {
   }
 });
 
-// 获取所有无效的cookie
+// Get all invalid cookies
 router.get("/invalid-cookies", async (req, res) => {
   try {
     const invalidCookies = keyManager.getInvalidCookies();
@@ -224,7 +226,7 @@ router.get("/invalid-cookies", async (req, res) => {
       invalidCookies: Array.from(invalidCookies)
     });
   } catch (error) {
-    logger.error('获取无效cookie失败:', error);
+    logger.error('Failed to get invalid cookies:', error);
     return res.status(500).json({
       error: 'Internal server error',
       message: error.message
@@ -232,7 +234,7 @@ router.get("/invalid-cookies", async (req, res) => {
   }
 });
 
-// 清除特定的无效cookie
+// Clear specific invalid cookie
 router.delete("/invalid-cookies/:cookie", async (req, res) => {
   try {
     const { cookie } = req.params;
@@ -240,10 +242,10 @@ router.delete("/invalid-cookies/:cookie", async (req, res) => {
     
     return res.json({
       success: success,
-      message: success ? '无效cookie已清除' : '未找到指定的无效cookie'
+      message: success ? 'Invalid cookie cleared' : 'Specified invalid cookie not found'
     });
   } catch (error) {
-    logger.error('清除无效cookie失败:', error);
+    logger.error('Failed to clear invalid cookie:', error);
     return res.status(500).json({
       error: 'Internal server error',
       message: error.message
@@ -251,17 +253,17 @@ router.delete("/invalid-cookies/:cookie", async (req, res) => {
   }
 });
 
-// 清除所有无效cookie
+// Clear all invalid cookies
 router.delete("/invalid-cookies", async (req, res) => {
   try {
     keyManager.clearAllInvalidCookies();
     
     return res.json({
       success: true,
-      message: '所有无效cookie已清除'
+      message: 'All invalid cookies cleared'
     });
   } catch (error) {
-    logger.error('清除所有无效cookie失败:', error);
+    logger.error('Failed to clear all invalid cookies:', error);
     return res.status(500).json({
       error: 'Internal server error',
       message: error.message
@@ -269,7 +271,7 @@ router.delete("/invalid-cookies", async (req, res) => {
   }
 });
 
-// 批量添加无效cookie
+// Batch add invalid cookies
 router.post("/invalid-cookies", async (req, res) => {
   try {
     const { invalidCookies } = req.body;
@@ -278,29 +280,29 @@ router.post("/invalid-cookies", async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Invalid request',
-        message: 'invalidCookies必须是一个数组'
+        message: 'invalidCookies must be an array'
       });
     }
     
-    // 获取当前无效cookie集合
+    // Get current invalid cookie set
     const currentInvalidCookies = keyManager.getInvalidCookies();
     
-    // 添加新的无效cookie
+    // Add new invalid cookies
     for (const cookie of invalidCookies) {
       if (typeof cookie === 'string' && cookie.trim()) {
         currentInvalidCookies.add(cookie.trim());
       }
     }
     
-    // 保存到文件
+    // Save to file
     keyManager.saveInvalidCookiesToFile();
     
     return res.json({
       success: true,
-      message: `已添加${invalidCookies.length}个无效cookie`
+      message: `Added ${invalidCookies.length} invalid cookies`
     });
   } catch (error) {
-    logger.error('添加无效cookie失败:', error);
+    logger.error('Failed to add invalid cookies:', error);
     return res.status(500).json({
       error: 'Internal server error',
       message: error.message
@@ -312,7 +314,7 @@ router.get("/models", async (req, res) => {
   try{
     let bearerToken = req.headers.authorization?.replace('Bearer ', '');
     
-    // 使用keyManager获取实际的cookie
+    // Use keyManager to get actual cookie
     let authToken = keyManager.getCookieForApiKey(bearerToken);
     
     if (authToken && authToken.includes('%3A%3A')) {
@@ -325,8 +327,7 @@ router.get("/models", async (req, res) => {
     const checksum = req.headers['x-cursor-checksum'] 
       ?? process.env['x-cursor-checksum'] 
       ?? generateCursorChecksum(authToken.trim());
-    //const cursorClientVersion = "0.45.11"
-    const cursorClientVersion = "1.5.0";
+    const cursorClientVersion = CURSOR_CLIENT_VERSION;
 
     const availableModelsResponse = await fetch("https://api2.cursor.sh/aiserver.v1.AiService/AvailableModels", {
       method: 'POST',
@@ -373,21 +374,21 @@ router.get("/models", async (req, res) => {
 
 
 router.post('/chat/completions', async (req, res) => {
-  // 检查请求体是否存在
+  // Check if request body exists
   if (!req.body) {
     return res.status(400).json({
-      error: '请求体不能为空',
+      error: 'Request body cannot be empty',
     });
   }
 
-  // 检查模型属性是否存在
+  // Check if model property exists
   if (!req.body.model) {
     return res.status(400).json({
-      error: '缺少必要参数: model',
+      error: 'Missing required parameter: model',
     });
   }
 
-  // o1开头的模型，不支持流式输出
+  // o1 models do not support stream output
   if (typeof req.body.model === 'string' && req.body.model.startsWith('o1-') && req.body.stream) {
     return res.status(400).json({
       error: 'Model not supported stream',
@@ -395,14 +396,14 @@ router.post('/chat/completions', async (req, res) => {
   }
 
   try {
-    const { model, messages, stream = false } = req.body;
+    const { model, messages, stream = false, tools } = req.body;
     let bearerToken = req.headers.authorization?.replace('Bearer ', '');
     
-    // 使用keyManager获取实际的cookie
+    // Use keyManager to get actual cookie
     let authToken = keyManager.getCookieForApiKey(bearerToken);
-    // 保存原始cookie，用于后续可能的错误处理
+    // Save original cookie for potential error handling
     const originalAuthToken = authToken;
-    //console.log('原始cookie:', originalAuthToken);
+    //console.log('Original cookie:', originalAuthToken);
 
     if (authToken && authToken.includes('%3A%3A')) {
       authToken = authToken.split('%3A%3A')[1];
@@ -423,35 +424,35 @@ router.post('/chat/completions', async (req, res) => {
 
     const sessionid = uuidv5(authToken,  uuidv5.DNS);
     const clientKey = generateHashed64Hex(authToken);
-    const cursorClientVersion = "1.5.0";
+    const cursorClientVersion = CURSOR_CLIENT_VERSION;
     
-    // 在请求聊天接口前，依次调用6个接口
+    // Before chat request, call 6 interfaces in sequence
     if (process.env.USE_OTHERS === 'true') {
       try{
         others(authToken, clientKey, checksum, cursorClientVersion, sessionid).then( () => {
-          logger.info("其它接口异步调用成功");
+          logger.info("Other interfaces async call successful");
         });
       } catch (error) {
         logger.error(error.message);
       }
     }
     
-    const cursorBody = generateCursorBody(messages, model);
+    const cursorBody = generateCursorBody(messages, model, tools);
     
-    // 添加代理支持
+    // Add proxy support
     const dispatcher = config.proxy && config.proxy.enabled
       ? new ProxyAgent(config.proxy.url, { allowH2: true })
       : new Agent({ allowH2: true });
 
-    // 根据.env配置决定是否使用TLS代理
+    // Decide whether to use TLS proxy based on .env config
     const useTlsProxy = process.env.USE_TLS_PROXY === 'true';
     
     let response;
     
     try {
       if (useTlsProxy) {
-        // 使用JA3指纹伪造代理服务器
-        logger.info(`使用TLS代理服务器`);
+        // Use JA3 fingerprint spoofing proxy
+        logger.info(`Using TLS proxy server`);
         response = await fetch('http://localhost:8080/proxy', {
           method: 'POST',
           headers: {
@@ -479,7 +480,7 @@ router.post('/chat/completions', async (req, res) => {
               'Host': 'api2.cursor.sh',
             },
             body: cursorBody,
-            stream: true // 启用流式响应
+            stream: true // Enable stream response
           }),
           timeout: {
             connect: 5000,
@@ -487,8 +488,8 @@ router.post('/chat/completions', async (req, res) => {
           }
         });
       } else {
-        // 直接调用API，不使用TLS代理
-        logger.info('不使用TLS代理服务器，直接请求API');
+        // Direct API call without TLS proxy
+        logger.info('Not using TLS proxy, direct API request');
         response = await fetch('https://api2.cursor.sh/aiserver.v1.ChatService/StreamUnifiedChatWithTools', {
           method: 'POST',
           headers: {
@@ -518,20 +519,20 @@ router.post('/chat/completions', async (req, res) => {
         });
       }
     } catch (fetchError) {
-      logger.error(`Fetch错误: ${fetchError.message}`);
+      logger.error(`Fetch error: ${fetchError.message}`);
       
-      // 处理连接超时错误
+      // Handle connection timeout error
       const isConnectTimeout = fetchError.cause && 
                              (fetchError.cause.code === 'UND_ERR_CONNECT_TIMEOUT' || 
                               fetchError.message.includes('Connect Timeout Error'));
       
-      // 构建错误响应
+      // Build error response
       const errorMessage = isConnectTimeout 
-        ? `⚠️ 连接超时 ⚠️\n\n无法连接到API服务器(api2.cursor.sh)，请检查您的网络连接或尝试使用代理。`
-        : `⚠️ 请求失败 ⚠️\n\n错误: ${fetchError.message}`;
+        ? `⚠️ Connection timeout ⚠️\n\nUnable to connect to API server (api2.cursor.sh). Please check your network connection or try using a proxy.`
+        : `⚠️ Request failed ⚠️\n\nError: ${fetchError.message}`;
 
       if (stream) {
-        // 流式响应格式的错误
+        // Stream response format error
         const responseId = `chatcmpl-${uuidv4()}`;
         res.write(
           `data: ${JSON.stringify({
@@ -552,7 +553,7 @@ router.post('/chat/completions', async (req, res) => {
         res.write('data: [DONE]\n\n');
         res.end();
       } else {
-        // 非流式响应格式的错误
+        // Non-stream response format error
         res.json({
           id: `chatcmpl-${uuidv4()}`,
           object: 'chat.completion',
@@ -575,10 +576,10 @@ router.post('/chat/completions', async (req, res) => {
           },
         });
       }
-      return; // 重要：提前返回
+      return; // Important: return early
     }
 
-    // 处理响应
+    // Process response
     if (stream) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -587,12 +588,12 @@ router.post('/chat/completions', async (req, res) => {
       const responseId = `chatcmpl-${uuidv4()}`;
       
       try {
-        let responseEnded = false; // 添加标志，标记响应是否已结束
-        let accumulatedThinking = ''; // 累积thinking内容
-        let accumulatedContent = ''; // 累积content内容
+        let responseEnded = false; // Flag if response ended
+        let accumulatedThinking = ''; // Accumulate thinking content
+        let accumulatedContent = ''; // Accumulate content
         
         for await (const chunk of response.body) {
-          // 如果响应已结束，不再处理后续数据
+          // If response ended, skip subsequent data
           if (responseEnded) {
             continue;
           }
@@ -601,35 +602,35 @@ router.post('/chat/completions', async (req, res) => {
           try {
             result = chunkToUtf8String(chunk);
           } catch (error) {
-            logger.error('解析响应块失败:', error);
-            // 提供默认的空结果，避免后续处理出错
+            logger.error('Failed to parse response chunk:', error);
+            // Provide default empty result to avoid downstream errors
             result = {
               reasoning_content: '', 
               content: '',
-              error: `解析错误: ${error.message}`
+              error: `Parse error: ${error.message}`
             };
           }
           
-          // 检查是否返回了错误对象
+          // Check if error object returned
           if (result && typeof result === 'object' && result.error) {
-            // 检查是否包含特定的无效cookie错误信息
+            // Check if contains specific invalid cookie error
             const errorStr = typeof result.error === 'string' ? result.error : JSON.stringify(result.error);
             
-            // 处理错误并获取结果
+            // Handle error and get result
             const errorResult = handleCursorError(errorStr, bearerToken, originalAuthToken);
             
-            // 如果是需要移除的cookie，从API Key中移除
+            // If cookie should be removed, remove from API Key
             if (errorResult.shouldRemoveCookie) {
               const removed = keyManager.removeCookieFromApiKey(bearerToken, originalAuthToken);
-              logger.info(`Cookie移除${removed ? '成功' : '失败'}`);
+              logger.info(`Cookie removal ${removed ? 'successful' : 'failed'}`);
               
-              // 如果成功移除，在错误消息中添加明确提示
+              // If removed successfully, add clear notice to error message
               if (removed) {
-                errorResult.message = `⚠️ 目前Cookie已从API Key中移除 ⚠️\n\n${errorResult.message}`;
+                errorResult.message = `⚠️ Cookie has been removed from API Key ⚠️\n\n${errorResult.message}`;
               }
             }
             
-            // 返回错误信息给客户端，作为assistant消息
+            // Return error to client as assistant message
             res.write(
               `data: ${JSON.stringify({
                 id: responseId,
@@ -648,16 +649,16 @@ router.post('/chat/completions', async (req, res) => {
             );
             
             res.write('data: [DONE]\n\n');
-            responseEnded = true; // 标记响应已结束
-            break; // 跳出循环，不再处理后续数据
+            responseEnded = true; // Mark response as ended
+            break; // Exit loop, no more processing
           }
 
-          // 处理thinking内容
+          // Process thinking content
           if (result.reasoning_content && result.reasoning_content.length > 0) {
-            // 累积thinking内容
+            // Accumulate thinking content
             accumulatedThinking += result.reasoning_content;
             
-            // 发送accumulated thinking内容片段
+            // Send accumulated thinking content fragment
             res.write(
               `data: ${JSON.stringify({
                 id: responseId,
@@ -676,12 +677,12 @@ router.post('/chat/completions', async (req, res) => {
             );
           }
 
-          // 处理常规内容
+          // Process regular content
           if (result.content && result.content.length > 0) {
-            // 累积content内容
+            // Accumulate content
             accumulatedContent += result.content;
 
-            // 发送content内容
+            // Send content
             res.write(
               `data: ${JSON.stringify({
                 id: responseId,
@@ -701,18 +702,37 @@ router.post('/chat/completions', async (req, res) => {
           }
         }
         
-        // 在循环结束后，如果响应尚未结束，发送[DONE]信号并结束响应
         if (!responseEnded) {
+          const parsedToolCalls = parseToolCalls(accumulatedContent);
+          if (parsedToolCalls.length > 0) {
+            res.write(
+              `data: ${JSON.stringify({
+                id: responseId,
+                object: 'chat.completion.chunk',
+                created: Math.floor(Date.now() / 1000),
+                model: req.body.model,
+                choices: [
+                  {
+                    index: 0,
+                    delta: {
+                      tool_calls: parsedToolCalls,
+                    },
+                    finish_reason: 'tool_calls',
+                  },
+                ],
+              })}\n\n`
+            );
+          }
           res.write('data: [DONE]\n\n');
           res.end();
         }
       } catch (streamError) {
         logger.error('Stream error:', streamError);
-        // 确保在发送错误信息前检查响应是否已结束
+        // Ensure response not ended before sending error
         if (!res.writableEnded) {
           if (streamError.name === 'TimeoutError') {
-            // 将超时错误作为assistant消息发送
-            const errorMessage = `⚠️ 请求超时 ⚠️\n\n错误：服务器响应超时，请稍后重试。`;
+            // Send timeout error as assistant message
+            const errorMessage = `⚠️ Request timeout ⚠️\n\nError: Server response timeout, please try again later.`;
             res.write(
               `data: ${JSON.stringify({
                 id: responseId,
@@ -730,8 +750,8 @@ router.post('/chat/completions', async (req, res) => {
               })}\n\n`
             );
           } else {
-            // 将处理错误作为assistant消息发送
-            const errorMessage = `⚠️ 处理错误 ⚠️\n\n错误：流处理出错，请稍后重试。\n\n${streamError.message || ''}`;
+            // Send processing error as assistant message
+            const errorMessage = `⚠️ Processing error ⚠️\n\nError: Stream processing error, please try again later.\n\n${streamError.message || ''}`;
             res.write(
               `data: ${JSON.stringify({
                 id: responseId,
@@ -757,10 +777,10 @@ router.post('/chat/completions', async (req, res) => {
       try {
         let text = '';
         let thinkingText = '';
-        let responseEnded = false; // 添加标志，标记响应是否已结束
+        let responseEnded = false; // Flag if response ended
         
         for await (const chunk of response.body) {
-          // 如果响应已结束，不再处理后续数据
+          // If response ended, skip subsequent data
           if (responseEnded) {
             continue;
           }
@@ -769,39 +789,39 @@ router.post('/chat/completions', async (req, res) => {
           try {
             result = chunkToUtf8String(chunk);
           } catch (error) {
-            logger.error('非流式响应解析块失败:', error);
-            // 提供默认的空结果，避免后续处理出错
+            logger.error('Failed to parse non-stream response chunk:', error);
+            // Provide default empty result to avoid downstream errors
             result = {
               reasoning_content: '', 
               content: '',
-              error: `解析错误: ${error.message}`
+              error: `Parse error: ${error.message}`
             };
           }
-          // 输出完整的result内容和类型，便于调试
-          //console.log("收到的非流式响应:", typeof result, result && typeof result === 'object' ? JSON.stringify(result) : result);
+          // Output full result for debugging
+          //console.log("Received non-stream response:", typeof result, result && typeof result === 'object' ? JSON.stringify(result) : result);
           
-          // 检查是否返回了错误对象
+          // Check if error object returned
           if (result && typeof result === 'object' && result.error) {
-            //console.error('检测到错误响应:', result.error);
+            //console.error('Error response detected:', result.error);
             
-            // 检查是否包含特定的无效cookie错误信息
+            // Check if contains specific invalid cookie error
             const errorStr = typeof result.error === 'string' ? result.error : JSON.stringify(result.error);
             
-            // 处理错误并获取结果
+            // Handle error and get result
             const errorResult = handleCursorError(errorStr, bearerToken, originalAuthToken);
             
-            // 如果是需要移除的cookie，从API Key中移除
+            // If cookie should be removed, remove from API Key
             if (errorResult.shouldRemoveCookie) {
               const removed = keyManager.removeCookieFromApiKey(bearerToken, originalAuthToken);
-              logger.info(`Cookie移除${removed ? '成功' : '失败'}`);
+              logger.info(`Cookie removal ${removed ? 'successful' : 'failed'}`);
               
-              // 如果成功移除，在错误消息中添加明确提示
+              // If removed successfully, add clear notice to error message
               if (removed) {
-                errorResult.message = `⚠️ 目前Cookie已从API Key中移除 ⚠️\n\n${errorResult.message}`;
+                errorResult.message = `⚠️ Cookie has been removed from API Key ⚠️\n\n${errorResult.message}`;
               }
             }
             
-            // 无效cookie错误，格式化为assistant消息
+            // Invalid cookie error, format as assistant message
             res.json({
               id: `chatcmpl-${uuidv4()}`,
               object: 'chat.completion',
@@ -824,33 +844,28 @@ router.post('/chat/completions', async (req, res) => {
               },
             });
             
-            responseEnded = true; // 标记响应已结束
-            break; // 跳出循环，不再处理后续数据
+            responseEnded = true; // Mark response as ended
+            break; // Exit loop, no more processing
           }
           
-          // 处理thinking内容
+          // Process thinking content
           if (result.reasoning_content && result.reasoning_content.length > 0) {
             thinkingText += result.reasoning_content;
           }
           
-          // 处理正常文本内容
+          // Process normal text content
           if (result.content && typeof result.content === 'string') {
             text += result.content;
           }
         }
         
-        // 只有在响应尚未结束的情况下，才处理和返回结果
         if (!responseEnded) {
-          // 对解析后的字符串进行进一步处理
           text = text.replace(/^.*<\|END_USER\|>/s, '');
           text = text.replace(/^\n[a-zA-Z]?/, '').trim();
-          
-          // 用于非酒馆想要显示的思维链的如果存在thinking内容，添加标签
-          // let finalContent = text;
-          // if (thinkingText.length > 0) {
-          //   finalContent = `<think>\n${thinkingText}\n</think>\n${text}`;
-          //   logger.info("finalContent:", finalContent);
-          // }
+
+          const parsedToolCalls = parseToolCalls(text);
+          const hasToolCalls = parsedToolCalls.length > 0;
+          const cleanedText = hasToolCalls ? stripToolCalls(text) : text;
 
           res.json({
             id: `chatcmpl-${uuidv4()}`,
@@ -863,9 +878,10 @@ router.post('/chat/completions', async (req, res) => {
                 message: {
                   role: 'assistant',
                   reasoning_content: thinkingText,
-                  content: text,
+                  content: cleanedText,
+                  ...(hasToolCalls ? { tool_calls: parsedToolCalls } : {}),
                 },
-                finish_reason: 'stop',
+                finish_reason: hasToolCalls ? 'tool_calls' : 'stop',
               },
             ],
             usage: {
@@ -877,11 +893,11 @@ router.post('/chat/completions', async (req, res) => {
         }
       } catch (error) {
         logger.error('Non-stream error:', error);
-        // 确保在发送错误信息前检查响应是否已结束
+        // Ensure response not sent before sending error
         if (!res.headersSent) {
           if (error.name === 'TimeoutError') {
-            // 使用统一的错误格式
-            const errorMessage = `⚠️ 请求超时 ⚠️\n\n错误：服务器响应超时，请稍后重试。`;
+            // Use unified error format
+            const errorMessage = `⚠️ Request timeout ⚠️\n\nError: Server response timeout, please try again later.`;
             return res.json({
               id: `chatcmpl-${uuidv4()}`,
               object: 'chat.completion',
@@ -911,13 +927,13 @@ router.post('/chat/completions', async (req, res) => {
   } catch (error) {
     logger.error('Error:', error);
     if (!res.headersSent) {
-      const errorText = error.name === 'TimeoutError' ? '请求超时' : '服务器内部错误';
+      const errorText = error.name === 'TimeoutError' ? 'Request timeout' : 'Internal server error';
       
       if (req.body.stream) {
-        // 流式响应格式的错误
+        // Stream response format error
         const responseId = `chatcmpl-${uuidv4()}`;
-        // 添加清晰的错误提示
-        const errorMessage = `⚠️ 请求失败 ⚠️\n\n错误：${errorText}，请稍后重试。\n\n${error.message || ''}`;
+        // Add clear error message
+        const errorMessage = `⚠️ Request failed ⚠️\n\nError: ${errorText}, please try again later.\n\n${error.message || ''}`;
         res.write(
           `data: ${JSON.stringify({
             id: responseId,
@@ -937,9 +953,9 @@ router.post('/chat/completions', async (req, res) => {
         res.write('data: [DONE]\n\n');
         res.end();
       } else {
-        // 非流式响应格式的错误
-        // 添加清晰的错误提示
-        const errorMessage = `⚠️ 请求失败 ⚠️\n\n错误：${errorText}，请稍后重试。\n\n${error.message || ''}`;
+        // Non-stream response format error
+        // Add clear error message
+        const errorMessage = `⚠️ Request failed ⚠️\n\nError: ${errorText}, please try again later.\n\n${error.message || ''}`;
         res.json({
           id: `chatcmpl-${uuidv4()}`,
           object: 'chat.completion',
@@ -966,58 +982,58 @@ router.post('/chat/completions', async (req, res) => {
   }
 });
 
-// 触发Cookie刷新
+// Trigger Cookie refresh
 router.post("/refresh-cookies", async (req, res) => {
   try {
-    // 如果已经有刷新进程在运行，则返回错误
+    // If refresh process already running, return error
     if (refreshStatus.isRunning) {
       return res.status(409).json({
         success: false,
-        message: '已有刷新进程在运行，请等待完成后再试'
+        message: 'A refresh process is already running, please wait for it to complete'
       });
     }
     
-    // 获取请求参数
+    // Get request parameters
     const apiKey = req.query.apiKey || '';
     
-    // 重置刷新状态
+    // Reset refresh status
     refreshStatus = {
       isRunning: true,
       status: 'running',
-      message: '正在启动刷新进程...',
+      message: 'Starting refresh process...',
       startTime: new Date(),
       endTime: null,
       error: null
     };
     
-    logger.info(`收到刷新Cookie请求，API Key: ${apiKey || '所有'}`);
+    logger.info(`Received Cookie refresh request, API Key: ${apiKey || 'all'}`);
     
-    // 构建命令行参数
+    // Build command line args
     const args = [];
     if (apiKey) {
       args.push(apiKey);
     }
     
-    // 获取auto-refresh-cookies.js的绝对路径
+    // Get absolute path of auto-refresh-cookies.js
     const scriptPath = path.resolve(__dirname, '../../auto-refresh-cookies.js');
     
-    // 启动子进程执行刷新脚本
+    // Start child process to run refresh script
     const refreshProcess = spawn('node', [scriptPath, ...args], {
       stdio: ['ignore', 'pipe', 'pipe']
     });
     
-    // 收集输出
+    // Collect output
     let output = '';
     
     refreshProcess.stdout.on('data', (data) => {
       const text = data.toString();
       output += text;
-      logger.info(`刷新进程输出: ${text}`);
+      logger.info(`Refresh process output: ${text}`);
       
-      // 更新状态消息
-      if (text.includes('开始自动刷新')) {
-        refreshStatus.message = '正在刷新Cookie...';
-      } else if (text.includes('刷新结果:')) {
+      // Update status message
+      if (text.includes('Starting auto refresh')) {
+        refreshStatus.message = 'Refreshing Cookie...';
+      } else if (text.includes('Refresh result:')) {
         refreshStatus.message = text.trim();
       }
     });
@@ -1025,15 +1041,15 @@ router.post("/refresh-cookies", async (req, res) => {
     refreshProcess.stderr.on('data', (data) => {
       const text = data.toString();
       output += text;
-      logger.error(`刷新进程错误: ${text}`);
+      logger.error(`Refresh process error: ${text}`);
       
-      // 更新错误信息
+      // Update error info
       refreshStatus.error = text.trim();
-      refreshStatus.message = `发生错误: ${text.trim()}`;
+      refreshStatus.message = `Error: ${text.trim()}`;
     });
     
     refreshProcess.on('close', (code) => {
-      logger.info(`刷新进程退出，代码: ${code}`);
+      logger.info(`Refresh process exited, code: ${code}`);
       
       refreshStatus.isRunning = false;
       refreshStatus.endTime = new Date();
@@ -1041,84 +1057,84 @@ router.post("/refresh-cookies", async (req, res) => {
       if (code === 0) {
         refreshStatus.status = 'completed';
         
-        // 提取成功信息
-        const successMatch = output.match(/成功刷新 (\d+) 个/);
+        // Extract success info
+        const successMatch = output.match(/Successfully refreshed (\d+)/);
         if (successMatch) {
-          refreshStatus.message = `成功刷新 ${successMatch[1]} 个API Key的Cookie`;
+          refreshStatus.message = `Successfully refreshed ${successMatch[1]} API Key Cookies`;
         } else {
-          refreshStatus.message = '刷新完成';
+          refreshStatus.message = 'Refresh complete';
         }
         
-        // 子进程执行完成后，重新初始化API Keys来加载新的Cookie
+        // After child process completes, reinitialize API Keys to load new Cookies
         try {
           const keyManager = require('../utils/keyManager');
-          logger.info('子进程刷新Cookie完成，重新初始化主进程中的API Keys...');
+          logger.info('Child process Cookie refresh complete, reinitializing API Keys in main process...');
           keyManager.initializeApiKeys();
-          logger.info('主进程API Keys重新加载完成');
+          logger.info('Main process API Keys reload complete');
         } catch (initError) {
-          logger.error('重新初始化API Keys失败:', initError);
+          logger.error('Failed to reinitialize API Keys:', initError);
         }
       } else {
         refreshStatus.status = 'failed';
-        refreshStatus.message = refreshStatus.error || '刷新失败，请查看服务器日志';
+        refreshStatus.message = refreshStatus.error || 'Refresh failed, check server logs';
       }
     });
     
-    // 立即返回响应，不等待刷新完成
+    // Return response immediately, do not wait for refresh
     return res.json({
       success: true,
-      message: '刷新请求已接受，正在后台处理'
+      message: 'Refresh request accepted, processing in background'
     });
   } catch (error) {
-    logger.error('触发刷新Cookie失败:', error);
+    logger.error('Failed to trigger Cookie refresh:', error);
     
-    // 更新刷新状态
+    // Update refresh status
     refreshStatus.isRunning = false;
     refreshStatus.status = 'failed';
     refreshStatus.endTime = new Date();
     refreshStatus.error = error.message;
-    refreshStatus.message = `触发刷新失败: ${error.message}`;
+    refreshStatus.message = `Failed to trigger refresh: ${error.message}`;
     
     return res.status(500).json({
       success: false,
-      message: `触发刷新失败: ${error.message}`
+      message: `Failed to trigger refresh: ${error.message}`
     });
   }
 });
 
-// 查询Cookie刷新状态
+// Query Cookie refresh status
 router.get("/refresh-status", (req, res) => {
   try {
-    // 返回当前刷新状态
+    // Return current refresh status
     return res.json({
       success: true,
       data: {
         ...refreshStatus,
         isRunning: refreshStatus.isRunning || false,
         status: refreshStatus.status || 'unknown',
-        message: refreshStatus.message || '未触发刷新',
+        message: refreshStatus.message || 'Refresh not triggered',
         startTime: refreshStatus.startTime || null,
         endTime: refreshStatus.endTime || null
       }
     });
   } catch (error) {
-    logger.error('获取刷新状态失败:', error);
+    logger.error('Failed to get refresh status:', error);
     return res.status(500).json({
       success: false,
-      message: `获取刷新状态失败: ${error.message}`
+      message: `Failed to get refresh status: ${error.message}`
     });
   }
 });
 
-// 生成获取Cookie的链接
+// Generate Cookie retrieval link
 router.post('/generate-cookie-link', async (req, res) => {
   try {
-    // 验证管理员权限
+    // Verify admin permission
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        message: '未提供认证token'
+        message: 'Auth token not provided'
       });
     }
     
@@ -1128,30 +1144,30 @@ router.post('/generate-cookie-link', async (req, res) => {
     if (!authResult.success) {
       return res.status(401).json({
         success: false,
-        message: '认证失败'
+        message: 'Authentication failed'
       });
     }
     
-    // 生成UUID和PKCE验证器
+    // Generate UUID and PKCE verifier
     const uuid = uuidv4();
     const verifier = crypto.randomBytes(32).toString('base64url');
     const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
 
-    // 生成登录链接
+    // Generate login link
     const loginUrl = `https://www.cursor.com/ja/loginDeepControl?challenge=${challenge}&uuid=${uuid}&mode=login`;
     
-    // 记录请求信息
+    // Record request info
     pendingCookieRequests.set(uuid, {
       uuid,
       verifier,
       status: 'waiting',
       created: Date.now(),
-      apiKey: req.body.apiKey || '', // 目标API Key，空字符串表示所有API Key
+      apiKey: req.body.apiKey || '', // Target API Key, empty means all
       lastCheck: Date.now(),
       cookie: null
     });
     
-    // 设置60分钟后自动清理
+    // Auto cleanup after 60 minutes
     setTimeout(() => {
       if (pendingCookieRequests.has(uuid)) {
         pendingCookieRequests.delete(uuid);
@@ -1164,7 +1180,7 @@ router.post('/generate-cookie-link', async (req, res) => {
       uuid: uuid
     });
   } catch (error) {
-    logger.error('生成Cookie链接失败:', error);
+    logger.error('Failed to generate Cookie link:', error);
     return res.status(500).json({
       success: false,
       message: error.message
@@ -1172,7 +1188,7 @@ router.post('/generate-cookie-link', async (req, res) => {
   }
 });
 
-// 查询Cookie获取状态
+// Query Cookie retrieval status
 router.get('/check-cookie-status', async (req, res) => {
   try {
     const { uuid } = req.query;
@@ -1181,16 +1197,16 @@ router.get('/check-cookie-status', async (req, res) => {
       return res.json({
         success: false,
         status: 'failed',
-        message: '无效的UUID或请求已过期'
+        message: 'Invalid UUID or request expired'
       });
     }
     
     const request = pendingCookieRequests.get(uuid);
     request.lastCheck = Date.now();
     
-    // 检查状态
+    // Check status
     if (request.status === 'waiting') {
-      // 检查Cursor API获取token
+      // Check Cursor API for token
       try {
         const apiUrl = `https://api2.cursor.sh/auth/poll?uuid=${uuid}&verifier=${request.verifier}`;
         const response = await fetch(apiUrl, {
@@ -1208,32 +1224,32 @@ router.get('/check-cookie-status', async (req, res) => {
           const data = await response.json();
           
           if (data && data.accessToken) {
-            // 获取到了Cookie
+            // Cookie obtained
             request.cookie = data.accessToken;
             request.status = 'success';
             
-            // 将Cookie添加到目标API Key
+            // Add Cookie to target API Key
             let message = '';
             
             if (request.apiKey) {
-              // 添加到特定API Key
+              // Add to specific API Key
               const apiKey = request.apiKey;
               const cookies = keyManager.getAllCookiesForApiKey(apiKey) || [];
               cookies.push(request.cookie);
               keyManager.addOrUpdateApiKey(apiKey, cookies);
-              message = `Cookie已添加到API Key: ${apiKey}`;
+              message = `Cookie added to API Key: ${apiKey}`;
             } else {
-              // 添加到所有API Key
+              // Add to all API Keys
               const apiKeys = keyManager.getAllApiKeys();
               for (const apiKey of apiKeys) {
                 const cookies = keyManager.getAllCookiesForApiKey(apiKey) || [];
                 cookies.push(request.cookie);
                 keyManager.addOrUpdateApiKey(apiKey, cookies);
               }
-              message = `Cookie已添加到所有API Key，共${apiKeys.length}个`;
+              message = `Cookie added to all API Keys (${apiKeys.length})`;
             }
             
-            // 完成后从等待列表中移除
+            // Remove from waiting list when done
             pendingCookieRequests.delete(uuid);
             
             return res.json({
@@ -1243,28 +1259,28 @@ router.get('/check-cookie-status', async (req, res) => {
           }
         }
         
-        // 如果没有获取到Cookie，继续等待
+        // If Cookie not obtained, keep waiting
         return res.json({
           success: false,
           status: 'waiting'
         });
         
       } catch (error) {
-        logger.error('查询Cursor API失败:', error);
-        // 发生错误但继续等待，不改变状态
+        logger.error('Failed to query Cursor API:', error);
+        // Error occurred but keep waiting, no state change
         return res.json({
           success: false,
           status: 'waiting',
-          message: '轮询过程中出现错误，继续等待'
+          message: 'Error during polling, continuing to wait'
         });
       }
     } else if (request.status === 'success') {
-      // 已成功，返回结果
+      // Already successful, return result
       const message = request.apiKey 
-        ? `Cookie已添加到API Key: ${request.apiKey}`
-        : `Cookie已添加到所有API Key`;
+        ? `Cookie added to API Key: ${request.apiKey}`
+        : `Cookie added to all API Keys`;
       
-      // 完成后从等待列表中移除
+      // Remove from waiting list when done
       pendingCookieRequests.delete(uuid);
       
       return res.json({
@@ -1272,16 +1288,16 @@ router.get('/check-cookie-status', async (req, res) => {
         message: message
       });
     } else {
-      // 失败
+      // Failed
       pendingCookieRequests.delete(uuid);
       return res.json({
         success: false,
         status: 'failed',
-        message: '获取Cookie失败'
+        message: 'Failed to get Cookie'
       });
     }
   } catch (error) {
-    logger.error('检查Cookie状态失败:', error);
+    logger.error('Failed to check Cookie status:', error);
     return res.status(500).json({
       success: false,
       status: 'failed',
@@ -1290,10 +1306,10 @@ router.get('/check-cookie-status', async (req, res) => {
   }
 });
 
-// 获取日志API
+// Get logs API
 router.get("/logs", (req, res) => {
   try {
-    // 获取查询参数
+    // Get query parameters
     const level = req.query.level;
     const search = req.query.search;
     const page = parseInt(req.query.page) || 1;
@@ -1301,7 +1317,7 @@ router.get("/logs", (req, res) => {
     const startTime = req.query.startTime;
     const endTime = req.query.endTime;
     
-    // 过滤参数
+    // Filter parameters
     const filter = {
       level,
       search,
@@ -1311,7 +1327,7 @@ router.get("/logs", (req, res) => {
       endTime
     };
     
-    // 获取日志
+    // Get logs
     const logs = logger.getLogs(filter);
     
     return res.json({
@@ -1319,33 +1335,33 @@ router.get("/logs", (req, res) => {
       data: logs
     });
   } catch (error) {
-    logger.error('获取日志失败:', error);
+    logger.error('Failed to get logs:', error);
     return res.status(500).json({
       success: false,
-      message: `获取日志失败: ${error.message}`
+      message: `Failed to get logs: ${error.message}`
     });
   }
 });
 
-// 清除内存日志
+// Clear memory logs
 router.delete("/logs", (req, res) => {
   try {
     logger.clearMemoryLogs();
     return res.json({
       success: true,
-      message: '日志已清除'
+      message: 'Logs cleared'
     });
   } catch (error) {
-    logger.error('清除日志失败:', error);
+    logger.error('Failed to clear logs:', error);
     return res.status(500).json({
       success: false,
-      message: `清除日志失败: ${error.message}`
+      message: `Failed to clear logs: ${error.message}`
     });
   }
 });
 async function others(authToken, clientKey, checksum, cursorClientVersion, sessionid){
   try {
-    // 定义所有API端点配置
+    // Define all API endpoint configs
     const endpoints = [
       {
         url: 'https://api2.cursor.sh/aiserver.v1.AiService/CheckFeatureStatus',
@@ -1366,7 +1382,7 @@ async function others(authToken, clientKey, checksum, cursorClientVersion, sessi
           'x-session-id': sessionid,
           'Host': 'api2.cursor.sh',
         },
-        body: '', // 实际长度为23字节
+        body: '', // Actual length 23 bytes
         timeout: {
           connect: 5000,
           read: 30000
@@ -1433,7 +1449,7 @@ async function others(authToken, clientKey, checksum, cursorClientVersion, sessi
           'Authorization': `Bearer ${authToken}`,
           'x-new-onboarding-completed': 'false',
           'x-ghost-mode': 'true',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Cursor/0.49.4 Chrome/132.0.6834.210 Electron/34.3.4 Safari/537.36',
+            'User-Agent': `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Cursor/${CURSOR_CLIENT_VERSION} Chrome/132.0.6834.210 Electron/34.3.4 Safari/537.36`,
           'Accept': '*/*',
           'Origin': 'vscode-file://vscode-app',
           'Sec-Fetch-Site': 'cross-site',
@@ -1499,26 +1515,26 @@ async function others(authToken, clientKey, checksum, cursorClientVersion, sessi
       }
     ];
 
-    // 随机选择2-4个接口调用
+    // Randomly select 2-4 interfaces to call
     const minApis = 2;
     const maxApis = 4;
     const numApisToCall = Math.floor(Math.random() * (maxApis - minApis + 1)) + minApis;
     
-    // 随机打乱数组并取前几个元素
+    // Shuffle array and take first N elements
     const shuffledEndpoints = [...endpoints].sort(() => 0.5 - Math.random()).slice(0, numApisToCall);
     
-    // 检查是否使用辅助代理服务器
+    // Check if using auxiliary proxy server
     const useOthersProxy = process.env.USE_OTHERS_PROXY === 'true';
     
-    // 使用Promise.allSettled确保即使一个请求失败也不会影响其他请求
+    // Use Promise.allSettled so one failure does not affect others
     const results = await Promise.allSettled(shuffledEndpoints.map(async (endpoint) => {
       try {
         let response;
         
         if (useOthersProxy) {
-          // 使用代理服务器方式
-          logger.debug(`使用辅助代理服务器请求: ${endpoint.url}`);
-          // 构造代理请求对象
+          // Use proxy server
+          logger.debug(`Using auxiliary proxy for: ${endpoint.url}`);
+          // Build proxy request object
           const proxyPayload = {
             url: endpoint.url,
             method: endpoint.method,
@@ -1527,19 +1543,19 @@ async function others(authToken, clientKey, checksum, cursorClientVersion, sessi
             stream: false
           };
           
-          // 使用代理服务器
+          // Use proxy server
           response = await fetch('http://localhost:10654/proxy', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify(proxyPayload),
-            // 保留原超时设置
+            // Keep original timeout
             timeout: endpoint.timeout
           });
         } else {
-          // 直接请求方式
-          logger.debug(`直接请求: ${endpoint.url}`);
+          // Direct request
+          logger.debug(`Direct request: ${endpoint.url}`);
           response = await fetch(endpoint.url, {
             method: endpoint.method,
             headers: endpoint.headers,
@@ -1554,8 +1570,8 @@ async function others(authToken, clientKey, checksum, cursorClientVersion, sessi
           success: true
         };
       } catch (error) {
-        // 记录单个请求的错误，但不中断整体流程
-        logger.debug(`其它API调用失败 (${endpoint.url}): ${error.message}`);
+        // Log single request error without interrupting overall flow
+        logger.debug(`Other API call failed (${endpoint.url}): ${error.message}`);
         return {
           url: endpoint.url,
           success: false,
@@ -1564,64 +1580,64 @@ async function others(authToken, clientKey, checksum, cursorClientVersion, sessi
       }
     }));
     
-    // 记录请求结果统计
+    // Log request result stats
     const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
-    logger.debug(`其它API调用完成: 成功 ${successCount}/${results.length}`);
+    logger.debug(`Other API calls complete: ${successCount}/${results.length} successful`);
     
     return true;
   } catch (error) {
-    // 记录整体错误，但不影响主流程
-    logger.error(`others函数执行出错: ${error.message}`);
+    // Log overall error without affecting main flow
+    logger.error(`others function execution error: ${error.message}`);
     return false;
   }
 }
-// 在文件末尾添加错误处理函数
+// Error handling function
 function handleCursorError(errorStr, bearerToken, originalAuthToken) {
   let message = '';
   let shouldRemoveCookie = false;
   
   if (errorStr.includes('Not logged in')) {
-    // 更明确的错误日志
+    // Clearer error logging
     if (originalAuthToken === bearerToken) {
-      logger.error(`检测到API Key "${bearerToken}" 中没有可用Cookie，正在尝试以向后兼容模式使用API Key本身`);
-      message = `错误：API Key "${bearerToken}" 中没有可用的Cookie。请添加有效的Cookie到此API Key，或使用其他有效的API Key。\n\n详细信息：${errorStr}`;
+      logger.error(`API Key "${bearerToken}" has no available Cookie, trying backward compatible mode`);
+      message = `Error: API Key "${bearerToken}" has no available Cookie. Please add valid Cookie to this API Key or use another valid API Key.\n\nDetails: ${errorStr}`;
     } else {
-      logger.error('检测到无效cookie:', originalAuthToken);
-      message = `错误：Cookie无效或已过期，请更新Cookie。\n\n详细信息：${errorStr}`;
+      logger.error('Invalid cookie detected:', originalAuthToken);
+      message = `Error: Cookie is invalid or expired, please update Cookie.\n\nDetails: ${errorStr}`;
     }
     shouldRemoveCookie = true;
   } else if (errorStr.includes('You\'ve reached your trial request limit') || errorStr.includes('You\'ve reached the usage limit for free usage')) {
-    logger.error('检测到额度用尽cookie:', originalAuthToken);
-    message = `错误：Cookie使用额度已用完，请更换Cookie或等待刷新。\n\n详细信息：${errorStr}`;
+    logger.error('Cookie quota exhausted:', originalAuthToken);
+    message = `Error: Cookie usage limit reached. Please replace Cookie or wait for refresh.\n\nDetails: ${errorStr}`;
     shouldRemoveCookie = true;
   } else if (errorStr.includes('User is unauthorized')) {
-    logger.error('检测到未授权cookie:', originalAuthToken);
-    message = `错误：Cookie已被封禁或失效，请更换Cookie。\n\n详细信息：${errorStr}`;
+    logger.error('Unauthorized cookie detected:', originalAuthToken);
+    message = `Error: Cookie has been banned or invalid, please replace Cookie.\n\nDetails: ${errorStr}`;
     shouldRemoveCookie = true;
   } else if (errorStr.includes('suspicious activity checks')) {
-    logger.error('检测到IP黑名单:', originalAuthToken);
-    message = `错误：IP可能被列入黑名单，请尝试更换网络环境或使用代理。\n\n详细信息：${errorStr}`;
+    logger.error('IP blacklist detected:', originalAuthToken);
+    message = `Error: IP may be blacklisted. Try changing network or using proxy.\n\nDetails: ${errorStr}`;
     shouldRemoveCookie = false;
   } else if (errorStr.includes('Too many computers')) {
-    logger.error('检测到账户暂时被封禁:', originalAuthToken);
-    message = `错误：账户因在多台设备登录而暂时被封禁，请稍后再试或更换账户。\n\n详细信息：${errorStr}`;
+    logger.error('Account temporarily banned:', originalAuthToken);
+    message = `Error: Account temporarily banned for multi-device login. Try again later or use different account.\n\nDetails: ${errorStr}`;
     shouldRemoveCookie = true;
   } else if (errorStr.includes('Login expired') || errorStr.includes('login expired')) {
-    logger.error('检测到登录过期cookie:', originalAuthToken);
-    message = `错误：Cookie登录已过期，请更新Cookie。\n\n详细信息：${errorStr}`;
+    logger.error('Login expired Cookie detected:', originalAuthToken);
+    message = `Error: Cookie login has expired, please update Cookie.\n\nDetails: ${errorStr}`;
     shouldRemoveCookie = true;
   } else if(errorStr.includes('your request has been blocked due to the use of a temporary email service for this account')) {
-    logger.error('检测到临时邮箱:', originalAuthToken);
-    message = `错误：请求被阻止，检测到临时邮箱服务，请更换邮箱。\n\n详细信息：${errorStr}`;
+    logger.error('Temporary email detected:', originalAuthToken);
+    message = `Error: Request blocked - temporary email service detected. Please use different email.\n\nDetails: ${errorStr}`;
     shouldRemoveCookie = true;
   } else if (errorStr.includes('Your request has been blocked as our system has detected suspicious activity from your account')) {
-    logger.error('检测到账户异常:', originalAuthToken);
-    message = `错误：请求被阻止，可能是假ban，多重试几次/更换cookie/更换设备。\n\n详细信息：${errorStr}`;
+    logger.error('Account anomaly detected:', originalAuthToken);
+    message = `Error: Request blocked - possible false ban. Try retrying/replacing cookie/device.\n\nDetails: ${errorStr}`;
     shouldRemoveCookie = false;
   } else {
-    // 非Cookie相关错误
-    logger.error('检测到其他错误:', errorStr);
-    message = `错误：请求失败。\n\n详细信息：${errorStr}`;
+    // Non-Cookie related error
+    logger.error('Other error detected:', errorStr);
+    message = `Error: Request failed.\n\nDetails: ${errorStr}`;
     shouldRemoveCookie = false;
   }
   

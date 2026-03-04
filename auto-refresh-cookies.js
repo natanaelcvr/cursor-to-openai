@@ -1,4 +1,4 @@
-// 加载环境变量
+// Load environment variables
 require('dotenv').config();
 
 const fs = require('fs');
@@ -8,142 +8,142 @@ const { spawn } = require('child_process');
 const keyManager = require('./src/utils/keyManager');
 const logger = require('./src/utils/logger');
 
-// 环境检查
+// Environment check
 const envChecker = require('./src/utils/envChecker');
-logger.info('启动前检查环境配置...');
+logger.info('Checking environment configuration before startup...');
 envChecker.enforceEnvCheck();
 
-// 已适配GitHub Actions工作流新参数 (use_config_file, email_configs)
-logger.info('环境检查通过，已适配最新GitHub Actions工作流参数');
+// Adapted to new GitHub Actions workflow parameters (use_config_file, email_configs)
+logger.info('Environment check passed, adapted to latest GitHub Actions workflow parameters');
 
 const cookieRefresher = require('./src/utils/cookieRefresher');
 const config = require('./src/config/config');
 
-// 解析命令行参数
+// Parse command line arguments
 const args = process.argv.slice(2);
 const targetApiKey = args.length > 0 ? args[0] : null;
 const forceRefresh = args.includes('--force') || args.includes('-f');
 
-// 最小 Cookie 数量
+// Minimum Cookie count
 const MIN_COOKIE_COUNT = process.env.MIN_COOKIE_COUNT || 3;
 
-// 获取Cookie刷新模式
+// Get Cookie refresh mode
 const COOKIE_REFRESH_MODE = process.env.COOKIE_REFRESH_MODE || 'append';
 
-// 主函数
+// Main function
 async function main() {
-  logger.info('===== 自动刷新 Cookie 开始 =====');
-  logger.info(`最小 Cookie 数量: ${MIN_COOKIE_COUNT}`);
-  logger.info(`Cookie 刷新模式: ${COOKIE_REFRESH_MODE} (${COOKIE_REFRESH_MODE === 'replace' ? '替换现有cookie' : '追加新cookie'})`);
+  logger.info('===== Auto refresh Cookie started =====');
+  logger.info(`Minimum Cookie count: ${MIN_COOKIE_COUNT}`);
+  logger.info(`Cookie refresh mode: ${COOKIE_REFRESH_MODE} (${COOKIE_REFRESH_MODE === 'replace' ? 'Replace existing cookies' : 'Append new cookies'})`);
   
   if (targetApiKey) {
-    logger.info(`指定刷新 API Key: ${targetApiKey}`);
+    logger.info(`Target API Key for refresh: ${targetApiKey}`);
   }
   
   if (forceRefresh) {
-    logger.info('强制刷新模式: 忽略 Cookie 数量检查');
+    logger.info('Force refresh mode: Ignore Cookie count check');
   }
   
   try {
-    // 获取所有 API Key
+    // Get all API Keys
     const apiKeys = keyManager.getAllApiKeys();
     
     if (apiKeys.length === 0) {
-      logger.warn('警告: 系统中没有找到任何 API Key');
+      logger.warn('Warning: No API Key found in the system');
       
-      // 检查环境变量中是否有 API Keys
+      // Check if API Keys exist in environment variables
       const envApiKeys = Object.keys(config.apiKeys);
       if (envApiKeys.length > 0) {
-        logger.info(`检测到环境变量中有 ${envApiKeys.length} 个 API Key，但尚未加载到系统中`);
-        logger.info('正在重新初始化 API Keys...');
+        logger.info(`Detected ${envApiKeys.length} API Key(s) in environment variables, but not yet loaded into the system`);
+        logger.info('Reinitializing API Keys...');
         
-        // 重新初始化 API Keys
+        // Reinitialize API Keys
         keyManager.initializeApiKeys();
         
-        // 重新获取 API Keys
+        // Get API Keys again
         const refreshedApiKeys = keyManager.getAllApiKeys();
         if (refreshedApiKeys.length > 0) {
-          logger.info(`成功加载 ${refreshedApiKeys.length} 个 API Key，继续刷新流程`);
-          // 继续执行后续刷新逻辑
+          logger.info(`Successfully loaded ${refreshedApiKeys.length} API Key(s), continuing refresh flow`);
+          // Continue with subsequent refresh logic
         } else {
-          logger.warn('初始化后仍未找到 API Key，请检查配置');
-          logger.info('===== 自动刷新 Cookie 结束 =====');
+          logger.warn('Still no API Key found after initialization, please check configuration');
+          logger.info('===== Auto refresh Cookie ended =====');
           return;
         }
       } else {
-        logger.warn('环境变量中也没有配置 API Key，请先添加 API Key');
-        logger.info('===== 自动刷新 Cookie 结束 =====');
+        logger.warn('No API Key configured in environment variables, please add API Key first');
+        logger.info('===== Auto refresh Cookie ended =====');
         return;
       }
     }
     
-    // 重新获取最新的 API Keys（可能已经通过上面的初始化更新了）
+    // Get the latest API Keys again (may have been updated by initialization above)
     const updatedApiKeys = keyManager.getAllApiKeys();
-    logger.info(`系统中共有 ${updatedApiKeys.length} 个 API Key`);
+    logger.info(`Total of ${updatedApiKeys.length} API Key(s) in the system`);
     
-    // 如果指定了特定的 API Key，检查它是否存在
+    // If a specific API Key was specified, check if it exists
     if (targetApiKey && !updatedApiKeys.includes(targetApiKey)) {
-      logger.error(`错误: 指定的 API Key "${targetApiKey}" 不存在`);
-      logger.info('===== 自动刷新 Cookie 异常结束 =====');
+      logger.error(`Error: Specified API Key "${targetApiKey}" does not exist`);
+      logger.info('===== Auto refresh Cookie ended abnormally =====');
       return;
     }
     
-    // 过滤需要处理的 API Keys
+    // Filter API Keys to process
     const keysToProcess = targetApiKey ? [targetApiKey] : updatedApiKeys;
     
-    // 按 Cookie 数量排序，优先处理 Cookie 数量少的 API Key
+    // Sort by Cookie count, prioritize API Keys with fewer Cookies
     const sortedKeys = keysToProcess.sort((a, b) => {
       const aCount = keyManager.getAllCookiesForApiKey(a).length;
       const bCount = keyManager.getAllCookiesForApiKey(b).length;
-      return aCount - bCount; // 升序排列，Cookie 数量少的排在前面
+      return aCount - bCount; // Ascending order, fewer Cookies first
     });
     
-    // 检查每个 API Key 是否需要刷新
+    // Check if each API Key needs refresh
     let refreshedCount = 0;
     let needRefreshCount = 0;
     
     for (const apiKey of sortedKeys) {
       const cookies = keyManager.getAllCookiesForApiKey(apiKey);
-      logger.info(`API Key: ${apiKey}, Cookie 数量: ${cookies.length}`);
+      logger.info(`API Key: ${apiKey}, Cookie count: ${cookies.length}`);
       
-      // 判断是否需要刷新：强制刷新模式或 Cookie 数量低于阈值
+      // Determine if refresh is needed: force refresh mode or Cookie count below threshold
       if (forceRefresh || cookies.length < MIN_COOKIE_COUNT) {
         needRefreshCount++;
         if (forceRefresh) {
-          logger.info(`强制刷新 API Key: ${apiKey}`);
+          logger.info(`Force refreshing API Key: ${apiKey}`);
         } else {
-          logger.info(`API Key ${apiKey} 的 Cookie 数量不足，需要刷新`);
+          logger.info(`API Key ${apiKey} has insufficient Cookie count, needs refresh`);
         }
         
-        // 执行刷新
-        logger.info(`开始自动刷新 Cookie，目标 API Key: ${apiKey}，最小 Cookie 数量: ${MIN_COOKIE_COUNT}，刷新模式: ${COOKIE_REFRESH_MODE}`);
+        // Execute refresh
+        logger.info(`Starting auto refresh Cookie, target API Key: ${apiKey}, minimum Cookie count: ${MIN_COOKIE_COUNT}, refresh mode: ${COOKIE_REFRESH_MODE}`);
         const result = await cookieRefresher.autoRefreshCookies(apiKey, MIN_COOKIE_COUNT);
         
         if (result.success) {
           refreshedCount++;
-          logger.info(`刷新结果: ${result.message}`);
+          logger.info(`Refresh result: ${result.message}`);
           
-          // 根据刷新模式输出额外的信息
+          // Output additional info based on refresh mode
           if (COOKIE_REFRESH_MODE === 'replace') {
-            logger.info(`使用替换模式: 现有cookie已全部标记为无效，系统现在只使用新cookie`);
+            logger.info(`Replace mode: All existing cookies have been marked invalid, system now uses only new cookies`);
           } else {
-            logger.info(`使用追加模式: 现有cookie已保留，新cookie已添加到系统`);
+            logger.info(`Append mode: Existing cookies retained, new cookies added to the system`);
           }
         } else {
-          logger.error(`刷新失败: ${result.message}`);
+          logger.error(`Refresh failed: ${result.message}`);
         }
       } else {
-        logger.info(`API Key ${apiKey} 的 Cookie 数量足够，不需要刷新`);
+        logger.info(`API Key ${apiKey} has sufficient Cookie count, no refresh needed`);
       }
     }
     
-    logger.info('===== 自动刷新 Cookie 完成 =====');
-    logger.info(`共有 ${needRefreshCount} 个 API Key 需要刷新，成功刷新 ${refreshedCount} 个`);
+    logger.info('===== Auto refresh Cookie completed =====');
+    logger.info(`Total ${needRefreshCount} API Key(s) needed refresh, successfully refreshed ${refreshedCount}`);
   } catch (error) {
-    logger.error('自动刷新 Cookie 失败:', error);
-    logger.info('===== 自动刷新 Cookie 异常结束 =====');
+    logger.error('Auto refresh Cookie failed:', error);
+    logger.info('===== Auto refresh Cookie ended abnormally =====');
   }
 }
 
-// 执行主函数
+// Execute main function
 main().catch(err => logger.error(err)); 

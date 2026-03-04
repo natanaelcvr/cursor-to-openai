@@ -1,51 +1,51 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# 项目管理脚本（数字选择版）
+# Project management script (numeric selection)
 
-echo "请选择操作："
-echo "1. 更新 cookie"
-echo "2. 启动项目"
-echo "3. 管理邮箱"
-echo "4. 初始化配置"
-echo "5. 更新项目代码"
-echo "6. 备份项目"
-echo "7. 退出"
+echo "Please select an operation:"
+echo "1. Update cookie"
+echo "2. Start project"
+echo "3. Manage emails"
+echo "4. Initialize configuration"
+echo "5. Update project code"
+echo "6. Backup project"
+echo "7. Exit"
 
-read -p "输入数字 (1-7): " choice
+read -p "Enter a number (1-7): " choice
 
 case $choice in
     1)
-        echo "正在更新 cookie..."
+        echo "Updating cookie..."
         npm run refresh-cookies
         ;;
     2)
-        echo "正在启动项目..."
+        echo "Starting project..."
         npm start
         ;;
     3)
-        echo "正在管理邮箱..."
+        echo "Managing emails..."
         npm run manage-emails
         ;;
     4)
-        echo "正在初始化配置文件..."
+        echo "Initializing configuration files..."
         npm run setup
         ;;
     5)
-        echo "正在更新项目代码..."
+        echo "Updating project code..."
         git pull
         ;;
     6)
-        echo "正在备份项目..."
+        echo "Backing up project..."
         DATE=$(date +%Y%m%d_%H%M%S)
         tar -czf "backup_$DATE.tar.gz" .
-        echo "备份完成: backup_$DATE.tar.gz"
+        echo "Backup completed: backup_$DATE.tar.gz"
         ;;
     7)
-        echo "退出"
+        echo "Exiting"
         exit 0
         ;;
     *)
-        echo "错误：请输入 1-7 之间的数字"
+        echo "Error: Please enter a number between 1-7"
         exit 1
         ;;
 esac

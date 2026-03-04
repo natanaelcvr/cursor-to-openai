@@ -1,102 +1,102 @@
-# Cursor-To-OpenAI 一键配置指南
+# Cursor-To-OpenAI One-Click Setup Guide
 
-本文档将指导你使用一键配置工具来设置 Cursor-To-OpenAI 环境。
+This document will guide you through setting up the Cursor-To-OpenAI environment using the one-click configuration tool.
 
-## 准备工作
+## Preparation
 
-在开始配置前，请确保你已经：
+Before you begin, ensure you have:
 
-1. Fork了 [Cursor-Register-fix](https://github.com/liuw1535/Cursor-Register-fix) 仓库到你的GitHub账号
-2. 创建了一个GitHub个人访问令牌（Personal Access Token），且具有 `repo` 权限
-3. 拥有至少一个Gmail账号，并启用了两步验证
-4. 为Gmail账号创建了应用密码（Application Password）
+1. Forked the [Cursor-Register-fix](https://github.com/liuw1535/Cursor-Register-fix) repository to your GitHub account
+2. Created a GitHub Personal Access Token with `repo` permission
+3. At least one Gmail account with two-factor authentication enabled
+4. Created an Application Password for your Gmail account
 
-## 配置步骤
+## Configuration Steps
 
-### 1. 安装依赖
+### 1. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 2. 运行配置脚本
+### 2. Run the Configuration Script
 
 ```bash
 npm run setup
 ```
 
-或者直接运行：
+Or run directly:
 
 ```bash
 node setup.js
 ```
 
-### 3. 按照提示输入信息
+### 3. Enter Information According to Prompts
 
-脚本会引导你输入以下信息：
+The script will guide you to enter the following information:
 
-- GitHub用户名：你的GitHub账号用户名
-- GitHub Token：你的个人访问令牌
-- API Key：自定义的API Key，用于访问服务
-- Gmail账号：用于自动注册Cursor账号的Gmail地址
-- Gmail应用密码：对应Gmail账号的应用密码（不是邮箱密码）
+- GitHub username: Your GitHub account username
+- GitHub Token: Your Personal Access Token
+- API Key: Custom API Key for accessing the service
+- Gmail account: Gmail address for automatic Cursor account registration
+- Gmail Application Password: Application password for the Gmail account (not the email password)
 
-### 4. 创建应用密码的步骤
+### 4. Steps to Create Application Password
 
-如果你还没有创建Gmail应用密码，请按照以下步骤操作：
+If you have not yet created a Gmail application password, follow these steps:
 
-1. 访问 [Google账号安全设置](https://myaccount.google.com/security)
-2. 在"登录Google"部分，点击"两步验证"
-   (如果未启用两步验证，需要先启用)
-3. 在页面底部找到"应用密码"，点击进入
-4. 在"选择应用"下拉菜单中选择"其他(自定义名称)"
-5. 输入一个名称，例如"Cursor注册"
-6. 点击"生成"
-7. 复制生成的16位应用密码（格式如：xxxx xxxx xxxx xxxx）
+1. Visit [Google Account Security Settings](https://myaccount.google.com/security)
+2. In the "Signing in to Google" section, click "2-Step Verification"
+   (If 2-Step Verification is not enabled, you need to enable it first)
+3. At the bottom of the page, find "App passwords" and click to enter
+4. In the "Select app" dropdown, choose "Other (Custom name)"
+5. Enter a name, for example "Cursor Registration"
+6. Click "Generate"
+7. Copy the generated 16-digit application password (format: xxxx xxxx xxxx xxxx)
 
-### 5. 管理邮箱配置
+### 5. Manage Email Configuration
 
-系统提供了一个专门的邮箱配置管理工具，可以随时添加、修改或删除邮箱：
+The system provides a dedicated email configuration management tool to add, modify, or delete emails at any time:
 
 ```bash
 npm run manage-emails
 ```
 
-使用此工具可以：
-- 查看所有已配置的邮箱
-- 添加新的Gmail账号
-- 修改现有Gmail账号的配置
-- 删除不再使用的Gmail账号
+Using this tool you can:
+- View all configured emails
+- Add new Gmail accounts
+- Modify existing Gmail account configuration
+- Delete Gmail accounts that are no longer in use
 
-## 配置完成后
+## After Configuration
 
-配置完成后，你可以：
+After configuration is complete, you can:
 
-1. 启动服务：
+1. Start the service:
 
 ```bash
 npm start
 ```
 
-2. 手动触发Cookie刷新：
+2. Manually trigger Cookie refresh:
 
 ```bash
 npm run refresh-cookies:force
 ```
 
-## 配置文件说明
+## Configuration File Description
 
-脚本会生成`.env`文件，其中包含以下主要配置：
+The script generates an `.env` file containing the following main configurations:
 
-- `API_KEYS`：API Key到Cookie的映射关系
-- `GITHUB_OWNER`：你的GitHub用户名
-- `GITHUB_TOKEN`：你的GitHub个人访问令牌
-- `REGISTER_EMAIL_CONFIGS`：Gmail账号配置，用于自动注册
+- `API_KEYS`: API Key to Cookie mapping
+- `GITHUB_OWNER`: Your GitHub username
+- `GITHUB_TOKEN`: Your GitHub Personal Access Token
+- `REGISTER_EMAIL_CONFIGS`: Gmail account configuration for automatic registration
 
-## 注意事项
+## Notes
 
-1. GitHub Token需要具有repo权限，用于访问你fork的仓库
-2. Gmail应用密码不同于你的Gmail登录密码，是专门为第三方应用生成的
-3. MIN_COOKIE_COUNT设置为1000，确保系统会尝试刷新Cookie
-4. 配置完成后，你可以通过Web界面查看和管理Cookie状态
-5. 始终确保至少有一个有效的Gmail账号配置，否则自动刷新功能将无法正常工作 
+1. GitHub Token needs repo permission to access your forked repository
+2. Gmail Application Password is different from your Gmail login password; it is specifically generated for third-party applications
+3. MIN_COOKIE_COUNT is set to 1000 to ensure the system will attempt to refresh Cookies
+4. After configuration, you can view and manage Cookie status through the Web interface
+5. Always ensure at least one valid Gmail account is configured, otherwise the auto-refresh feature will not work properly

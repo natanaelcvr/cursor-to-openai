@@ -3,17 +3,17 @@ const path = require('path');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
-// 管理员数据文件路径
+// Admin data file path
 const ADMIN_FILE = path.join(__dirname, '../../data/admin.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// 确保data目录存在
+// Ensure data directory exists
 const dataDir = path.dirname(ADMIN_FILE);
 if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
 
-// 确保admin.json文件存在
+// Ensure admin.json file exists
 if (!fs.existsSync(ADMIN_FILE)) {
     fs.writeFileSync(ADMIN_FILE, JSON.stringify({ admin: null }), 'utf8');
 }
@@ -23,41 +23,41 @@ class Admin {
         this.loadAdmin();
     }
 
-    // 加载管理员数据
+    // Load admin data
     loadAdmin() {
         try {
             const data = fs.readFileSync(ADMIN_FILE, 'utf8');
             this.admin = JSON.parse(data).admin;
         } catch (error) {
-            console.error('加载管理员数据失败:', error);
+            console.error('Failed to load admin data:', error);
             this.admin = null;
         }
     }
 
-    // 保存管理员数据
+    // Save admin data
     saveAdmin() {
         try {
             fs.writeFileSync(ADMIN_FILE, JSON.stringify({ admin: this.admin }), 'utf8');
         } catch (error) {
-            console.error('保存管理员数据失败:', error);
+            console.error('Failed to save admin data:', error);
             throw error;
         }
     }
 
-    // 检查是否已有管理员
+    // Check if admin already exists
     hasAdmin() {
         return !!this.admin;
     }
 
-    // 注册管理员
+    // Register admin
     register(username, password) {
         if (this.hasAdmin()) {
-            throw new Error('已存在管理员账号');
+            throw new Error('Admin account already exists');
         }
 
-        // 生成盐值
+        // Generate salt
         const salt = crypto.randomBytes(16).toString('hex');
-        // 使用盐值加密密码
+        // Hash password with salt
         const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
 
         this.admin = {
@@ -70,31 +70,31 @@ class Admin {
         return this.generateToken(username);
     }
 
-    // 验证密码
+    // Verify password
     verifyPassword(password, salt, hash) {
         const testHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
         return testHash === hash;
     }
 
-    // 登录验证
+    // Login validation
     login(username, password) {
         if (!this.admin || username !== this.admin.username) {
-            throw new Error('用户名或密码错误');
+            throw new Error('Invalid username or password');
         }
 
         if (!this.verifyPassword(password, this.admin.salt, this.admin.hash)) {
-            throw new Error('用户名或密码错误');
+            throw new Error('Invalid username or password');
         }
 
         return this.generateToken(username);
     }
 
-    // 生成JWT token
+    // Generate JWT token
     generateToken(username) {
         return jwt.sign({ username }, JWT_SECRET, { expiresIn: '24h' });
     }
 
-    // 验证JWT token
+    // Verify JWT token
     verifyToken(token) {
         try {
             const decoded = jwt.verify(token, JWT_SECRET);

@@ -1,45 +1,45 @@
 const admin = require('../models/admin');
 
-// 验证管理员权限的中间件
+// Admin authentication middleware
 function authMiddleware(req, res, next) {
-    // 跳过登录相关的路由
+    // Skip login-related routes
     if (req.path.startsWith('/v1/admin/')) {
         return next();
     }
 
-    // 对静态HTML页面的处理
+    // Handle static HTML pages
     if (req.path === '/logs.html') {
-        // 日志页面的访问不在中间件中做验证，而是在前端页面中进行验证
+        // Log page access is not validated in middleware, but in frontend page
         return next();
     }
 
-    // 修改为：只对管理相关的API进行认证
+    // Only authenticate management-related APIs
     if (req.path.startsWith('/v1/api-keys') || 
         req.path.startsWith('/v1/invalid-cookies') || 
         req.path.startsWith('/v1/refresh-cookies') ||
         req.path.startsWith('/v1/logs')) {
-        // 获取Authorization头
+        // Get Authorization header
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 success: false,
-                message: '未提供认证token'
+                message: 'Auth token not provided'
             });
         }
 
-        // 提取token
+        // Extract token
         const token = authHeader.split(' ')[1];
         
-        // 验证token
+        // Verify token
         const result = admin.verifyToken(token);
         if (!result.success) {
             return res.status(401).json({
                 success: false,
-                message: '无效的token'
+                message: 'Invalid token'
             });
         }
 
-        // 将用户信息添加到请求对象
+        // Add user info to request object
         req.admin = {
             username: result.username
         };

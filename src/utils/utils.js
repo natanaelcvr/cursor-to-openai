@@ -4,22 +4,151 @@ const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const $root = require('../proto/message.js');
 
-function generateCursorBody(messages, modelName) {
+const TOOL_PREFIX = 'oc_';
 
-  const instruction = messages
+function addToolPrefix(name) {
+  return TOOL_PREFIX + name;
+}
+
+function stripToolPrefix(name) {
+  return name.startsWith(TOOL_PREFIX) ? name.slice(TOOL_PREFIX.length) : name;
+}
+
+function normalizeContent(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter(p => p.type === 'text' || typeof p === 'string')
+      .map(p => typeof p === 'string' ? p : p.text || '')
+      .join('\n');
+  }
+  return String(content || '');
+}
+
+function parseToolCalls(content) {
+  const toolCalls = [];
+  let index = 0;
+
+  const toolCallRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
+  let match;
+  while ((match = toolCallRegex.exec(content)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1].trim());
+      const rawName = parsed.name || parsed.tool_name || '';
+      toolCalls.push({
+        index: index++,
+        id: `call_${uuidv4().replace(/-/g, '').substring(0, 24)}`,
+        type: 'function',
+        function: {
+          name: stripToolPrefix(rawName),
+          arguments: JSON.stringify(parsed.arguments || parsed.parameters || {})
+        }
+      });
+    } catch (e) {}
+  }
+
+  if (toolCalls.length === 0) {
+    const funcCallsRegex = /<function_calls>\s*([\s\S]*?)\s*<\/function_calls>/g;
+    while ((match = funcCallsRegex.exec(content)) !== null) {
+      try {
+        const parsed = JSON.parse(match[1].trim());
+        const calls = Array.isArray(parsed) ? parsed : [parsed];
+        for (const call of calls) {
+          const rawName = call.name || call.tool_name || '';
+          toolCalls.push({
+            index: index++,
+            id: `call_${uuidv4().replace(/-/g, '').substring(0, 24)}`,
+            type: 'function',
+            function: {
+              name: stripToolPrefix(rawName),
+              arguments: JSON.stringify(call.arguments || call.parameters || {})
+            }
+          });
+        }
+      } catch (e) {}
+    }
+  }
+
+  return toolCalls;
+}
+
+function stripToolCalls(content) {
+  return content
+    .replace(/<tool_call>\s*[\s\S]*?\s*<\/tool_call>/g, '')
+    .replace(/<function_calls>\s*[\s\S]*?\s*<\/function_calls>/g, '')
+    .trim();
+}
+
+function generateCursorBody(messages, modelName, tools) {
+
+  const hasTools = tools && tools.length > 0;
+  const chatModeEnum = 2;
+  const chatModeStr = "Agent";
+
+  let instruction = messages
     .filter(msg => msg.role === 'system')
-    .map(msg => msg.content)
+    .map(msg => normalizeContent(msg.content))
     .join('\n')
 
-  const formattedMessages = messages
-    .filter(msg => msg.role !== 'system')
-    .map(msg => ({
-      content: msg.content,
-      role: msg.role === 'user' ? 1 : 2,
-      messageId: uuidv4(),
-      ...(msg.role === 'user' ? { chatModeEnum: 1 } : {})
-      //...(msg.role !== 'user' ? { summaryId: uuidv4() } : {})
-    }));
+  let toolSuffix = '';
+  if (hasTools) {
+    const toolsSchema = tools.map(t => {
+      const fn = t.function || t;
+      const params = fn.parameters || {};
+      const paramNames = Object.keys((params.properties) || {});
+      const prefixedName = addToolPrefix(fn.name);
+      return `{"name":"${prefixedName}","params":{${paramNames.map(p => `"${p}":"${(params.properties[p] || {}).type || 'string'}"`).join(',')}}}`;
+    });
+    toolSuffix = `\n\n---\ntools_schema: [${toolsSchema.join(',')}]\nresponse_format: <tool_call>{"name":"...","arguments":{...}}</tool_call>`;
+  }
+
+  let lastUserIdx = -1;
+  const nonSystemMessages = messages.filter(msg => msg.role !== 'system');
+  for (let i = nonSystemMessages.length - 1; i >= 0; i--) {
+    if (nonSystemMessages[i].role === 'user') { lastUserIdx = i; break; }
+  }
+
+  const formattedMessages = nonSystemMessages
+    .flatMap((msg, idx) => {
+      if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
+        let content = normalizeContent(msg.content) || '';
+        for (const tc of msg.tool_calls) {
+          const fn = tc.function || tc;
+          let args = fn.arguments;
+          if (typeof args === 'string') {
+            try { args = JSON.parse(args); } catch(e) {}
+          }
+          const prefixedName = hasTools ? addToolPrefix(fn.name) : fn.name;
+          content += `\n<tool_call>\n${JSON.stringify({name: prefixedName, arguments: args})}\n</tool_call>`;
+        }
+        return [{
+          content: content,
+          role: 2,
+          messageId: uuidv4(),
+        }];
+      }
+
+      if (msg.role === 'tool') {
+        return [{
+          content: `<tool_result call_id="${msg.tool_call_id || ''}">\n${normalizeContent(msg.content)}\n</tool_result>`,
+          role: 1,
+          messageId: uuidv4(),
+          chatModeEnum: chatModeEnum,
+        }];
+      }
+
+      let content = normalizeContent(msg.content);
+      if (msg.role === 'user' && hasTools && idx === lastUserIdx) {
+        content += toolSuffix;
+      }
+
+      return [{
+        content: content,
+        role: msg.role === 'user' ? 1 : 2,
+        messageId: uuidv4(),
+        ...(msg.role === 'user' ? { chatModeEnum: chatModeEnum } : {}),
+      }];
+    });
 
   const messageIds = formattedMessages.map(msg => {
     const { role, messageId, summaryId } = msg;
@@ -65,13 +194,13 @@ function generateCursorBody(messages, modelName) {
       messageIds: messageIds,
       largeContext: 0,
       unknown38: 0,
-      chatModeEnum: 1,
+      chatModeEnum: chatModeEnum,
       unknown47: "",
       unknown48: 0,
       unknown49: 0,
       unknown51: 0,
       unknown53: 1,
-      chatMode: "Ask"
+      chatMode: chatModeStr
     }
   };
 
@@ -115,12 +244,12 @@ function chunkToUtf8String(chunk) {
         const thinking = response?.message?.thinking?.content
         if (thinking !== undefined && thinking.length > 0){
             thinkingResults.push(thinking);
-            // console.log('[DEBUG] 收到 thinking:', thinking);
+            // console.log('[DEBUG] Received thinking:', thinking);
         }
         const content = response?.message?.content
         if (content !== undefined && content.length > 0){
           contentResults.push(content)
-          // console.log('[DEBUG] 收到 content:', content);
+          // console.log('[DEBUG] Received content:', content);
         }
       }
       else if (magicNumber == 2 || magicNumber == 3) { 
@@ -134,7 +263,7 @@ function chunkToUtf8String(chunk) {
             //results.push(utf8)
             console.error(utf8)
             
-            // 检查是否为错误消息
+            // Check if error message
             if (message && message.error) {
               errorResults.hasError = true;
               errorResults.errorMessage = utf8;
@@ -151,12 +280,12 @@ function chunkToUtf8String(chunk) {
     console.log('Error parsing chunk response:', err)
   }
 
-  // 如果存在错误，返回错误对象
+  // If error exists, return error object
   if (errorResults.hasError) {
     return { error: errorResults.errorMessage };
   }
 
-  // 分别返回thinking和content内容
+  // Return thinking and content separately
   return {
     reasoning_content: thinkingResults.join(''),
     content: contentResults.join('')
@@ -202,5 +331,9 @@ module.exports = {
   generateCursorBody,
   chunkToUtf8String,
   generateHashed64Hex,
-  generateCursorChecksum
+  generateCursorChecksum,
+  parseToolCalls,
+  stripToolCalls,
+  addToolPrefix,
+  stripToolPrefix
 };

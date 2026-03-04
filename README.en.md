@@ -1,6 +1,6 @@
-# Cursor-To-OpenAI-Nexus
+# Cursor-To-OpenAI
 
-[中文](README.md) | English
+English | [中文](README.cn.md)
 
 Forward Cursor API requests to OpenAI, with support for multiple API Keys rotation.
 
@@ -14,11 +14,11 @@ Forward Cursor API requests to OpenAI, with support for multiple API Keys rotati
 ## 🚀 Basic Installation
 ### Clone Repository
 ```
-git clone https://github.com/liuw1535/cursor-to-openai-nexus.git
+git clone https://github.com/liuw1535/cursor-to-openai.git
 ```
 ### Enter Project Directory
 ```
-cd cursor-to-openai-nexus
+cd cursor-to-openai
 ```
 ### Install Dependencies
 ```

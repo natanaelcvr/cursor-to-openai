@@ -5,49 +5,49 @@ const path = require('path');
 const readline = require('readline');
 const dotenv = require('dotenv');
 
-// 创建交互式命令行界面
+// Create interactive CLI
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-// 配置模板
-const ENV_TEMPLATE = `# 服务端口
+// Configuration template
+const ENV_TEMPLATE = `# Service port
 PORT=3010
 
-# 日志格式 (tiny, combined, common, dev, short)
+# Log format (tiny, combined, common, dev, short)
 MORGAN_FORMAT=tiny
 
-# API Key与Cookie映射关系 (JSON格式)
-# 格式: {"自定义API Key": "Cookie值"} 或 {"自定义API Key": ["Cookie值1", "Cookie值2"]}
+# API Key to Cookie mapping (JSON format)
+# Format: {"custom-API-Key": "Cookie-value"} or {"custom-API-Key": ["Cookie1", "Cookie2"]}
 API_KEYS={API_KEYS_PLACEHOLDER}
 
-# 轮询策略 (random 或 round-robin 或 default)
+# Rotation strategy (random, round-robin, or default)
 ROTATION_STRATEGY=default
 
-# 是否使用TLS代理 (true 或 false)
+# Whether to use TLS proxy (true or false)
 USE_TLS_PROXY={USE_TLS_PROXY_PLACEHOLDER}
 
-# 是否使用辅助代理服务器 (true 或 false)
+# Whether to use auxiliary proxy server (true or false)
 USE_OTHERS_PROXY={USE_OTHERS_PROXY_PLACEHOLDER}
 
-# 代理服务器平台
-# 可选值: auto, windows_x64, linux_x64, android_arm64
-# auto: 自动检测平台
-# windows_x64: Windows 64位
-# linux_x64: Linux 64位
-# android_arm64: 安卓ARM 64位
+# Proxy server platform
+# Options: auto, windows_x64, linux_x64, android_arm64
+# auto: Auto-detect platform
+# windows_x64: Windows 64-bit
+# linux_x64: Linux 64-bit
+# android_arm64: Android ARM 64-bit
 PROXY_PLATFORM={PROXY_PLATFORM_PLACEHOLDER}
 
-# 是否使用其它接口 (true 或 false)
+# Whether to use other interfaces (true or false)
 USE_OTHERS={USE_OTHERS_PLACEHOLDER}
 `;
 
-// 提示信息
-console.log('===== Cursor-To-OpenAI 环境配置助手 =====');
-console.log('这个脚本将帮助你配置必要的环境变量\n');
+// Prompt message
+console.log('===== Cursor-To-OpenAI Environment Configuration Wizard =====');
+console.log('This script will help you configure the necessary environment variables\n');
 
-// 从现有.env文件加载配置
+// Load configuration from existing .env file
 function loadExistingConfig() {
   const envPath = path.join(process.cwd(), '.env');
   let existingConfig = {
@@ -60,73 +60,73 @@ function loadExistingConfig() {
   };
   
   if (fs.existsSync(envPath)) {
-    console.log('发现现有的.env配置文件，将加载现有设置作为默认值');
-    console.log('提示: 直接按回车将保留现有设置不变\n');
+    console.log('Found existing .env configuration file, will load existing settings as defaults');
+    console.log('Tip: Press Enter to keep existing settings unchanged\n');
     
     try {
-      // 加载.env文件
+      // Load .env file
       const envConfig = dotenv.parse(fs.readFileSync(envPath));
       
-      // 提取API Keys
+      // Extract API Keys
       if (envConfig.API_KEYS) {
         try {
           existingConfig.apiKeys = JSON.parse(envConfig.API_KEYS);
         } catch (e) {
-          console.log('无法解析现有的API Keys配置，将使用默认设置');
+          console.log('Unable to parse existing API Keys configuration, will use default settings');
         }
       }
       
-      // 提取TLS代理配置
+      // Extract TLS proxy configuration
       if (envConfig.USE_TLS_PROXY !== undefined) {
         existingConfig.useTlsProxy = envConfig.USE_TLS_PROXY === 'true';
       }
       
-      // 提取辅助代理服务器配置
+      // Extract auxiliary proxy server configuration
       if (envConfig.USE_OTHERS_PROXY !== undefined) {
         existingConfig.useOthersProxy = envConfig.USE_OTHERS_PROXY === 'true';
       }
       
-      // 提取代理服务器平台
+      // Extract proxy server platform
       if (envConfig.PROXY_PLATFORM) {
         existingConfig.proxyPlatform = envConfig.PROXY_PLATFORM;
       }
 
-      // 提取是否使用其它接口
+      // Extract whether to use other interfaces
       if (envConfig.USE_OTHERS !== undefined) {
         existingConfig.useOthers = envConfig.USE_OTHERS === 'true';
       }
       
-      // 提取轮询策略
+      // Extract rotation strategy
       if (envConfig.ROTATION_STRATEGY) {
         existingConfig.rotationStrategy = envConfig.ROTATION_STRATEGY;
       }
       
-      console.log('成功加载现有配置');
+      console.log('Successfully loaded existing configuration');
     } catch (error) {
-      console.error('加载现有配置时出错:', error.message);
-      console.log('将使用默认设置');
+      console.error('Error loading existing configuration:', error.message);
+      console.log('Will use default settings');
     }
   } else {
-    console.log('未找到现有的.env配置文件，将创建新的配置文件');
+    console.log('No existing .env configuration file found, will create new configuration file');
   }
   
   return existingConfig;
 }
 
-// 提示用户输入，带有默认值
+// Prompt user for input with default value
 function promptWithDefault(question, defaultValue) {
   return new Promise((resolve) => {
     const defaultText = defaultValue ? ` [${defaultValue}]` : '';
     rl.question(`${question}${defaultText}: `, (answer) => {
-      // 如果用户只按了回车，使用默认值
+      // If user only presses Enter, use default value
       resolve(answer.trim() || defaultValue || '');
     });
   });
 }
 
-// 收集配置信息
+// Collect configuration information
 async function collectConfig() {
-  // 加载现有配置
+  // Load existing configuration
   const existingConfig = loadExistingConfig();
   
   const config = {
@@ -138,87 +138,87 @@ async function collectConfig() {
     rotationStrategy: existingConfig.rotationStrategy
   };
 
-  // 询问是否使用TLS代理
-  const useTlsProxyPrompt = `是否使用TLS代理服务器? (y/n)`;
+  // Ask whether to use TLS proxy
+  const useTlsProxyPrompt = `Use TLS proxy server? (y/n)`;
   const defaultUseTlsProxy = existingConfig.useTlsProxy ? 'y' : 'n';
   const useTlsProxyAnswer = await promptWithDefault(useTlsProxyPrompt, defaultUseTlsProxy);
   config.useTlsProxy = useTlsProxyAnswer.toLowerCase() === 'y';
 
   if (config.useTlsProxy) {
-    // 询问是否使用辅助代理服务器
-    const useOthersProxyPrompt = `是否使用辅助代理服务器(port 10654)? (y/n)`;
+    // Ask whether to use auxiliary proxy server
+    const useOthersProxyPrompt = `Use auxiliary proxy server (port 10654)? (y/n)`;
     const defaultUseOthersProxy = existingConfig.useOthersProxy ? 'y' : 'n';
     const useOthersProxyAnswer = await promptWithDefault(useOthersProxyPrompt, defaultUseOthersProxy);
     config.useOthersProxy = useOthersProxyAnswer.toLowerCase() === 'y';
     
-    // 询问代理服务器平台
-    console.log('\n代理服务器平台选项:');
-    console.log('- auto: 自动检测当前系统平台');
-    console.log('- windows_x64: Windows 64位');
-    console.log('- linux_x64: Linux 64位');
-    console.log('- android_arm64: 安卓ARM 64位');
+    // Ask for proxy server platform
+    console.log('\nProxy server platform options:');
+    console.log('- auto: Auto-detect current system platform');
+    console.log('- windows_x64: Windows 64-bit');
+    console.log('- linux_x64: Linux 64-bit');
+    console.log('- android_arm64: Android ARM 64-bit');
     
-    const proxyPlatformPrompt = `选择代理服务器平台`;
+    const proxyPlatformPrompt = `Select proxy server platform`;
     const defaultProxyPlatform = existingConfig.proxyPlatform || 'auto';
     config.proxyPlatform = await promptWithDefault(proxyPlatformPrompt, defaultProxyPlatform);
   }
 
-  // 询问是否使用其它接口
-  const useOthersPrompt = `是否使用其它接口? (y/n)`;
+  // Ask whether to use other interfaces
+  const useOthersPrompt = `Use other interfaces? (y/n)`;
   const defaultUseOthers = existingConfig.useOthers ? 'y' : 'n';
   const useOthersAnswer = await promptWithDefault(useOthersPrompt, defaultUseOthers);
   config.useOthers = useOthersAnswer.toLowerCase() === 'y';
 
-  // 询问轮询策略
-  console.log('\n轮询策略选项:');
-  console.log('- default: 默认策略');
-  console.log('- random: 随机策略');
-  console.log('- round-robin: 轮询策略');
+  // Ask for rotation strategy
+  console.log('\nRotation strategy options:');
+  console.log('- default: Default strategy');
+  console.log('- random: Random strategy');
+  console.log('- round-robin: Round-robin strategy');
   
-  const rotationStrategyPrompt = `选择轮询策略`;
+  const rotationStrategyPrompt = `Select rotation strategy`;
   const defaultRotationStrategy = existingConfig.rotationStrategy || 'default';
   config.rotationStrategy = await promptWithDefault(rotationStrategyPrompt, defaultRotationStrategy);
 
-  // 处理API Keys
+  // Handle API Keys
   const existingApiKeys = Object.keys(existingConfig.apiKeys);
   if (existingApiKeys.length > 0) {
-    console.log('\n现有的API Keys:');
+    console.log('\nExisting API Keys:');
     existingApiKeys.forEach(key => console.log(`- ${key}`));
     
-    const keepExistingApiKeys = await promptWithDefault('是否保留现有的API Keys? (y/n)', 'y');
+    const keepExistingApiKeys = await promptWithDefault('Keep existing API Keys? (y/n)', 'y');
     if (keepExistingApiKeys.toLowerCase() === 'y') {
       config.apiKeys = { ...existingConfig.apiKeys };
     }
   }
 
-  // 询问是否添加新的API Key
-  const addNewApiKey = await promptWithDefault('是否添加新的API Key? (y/n)', existingApiKeys.length === 0 ? 'y' : 'n');
+  // Ask whether to add new API Key
+  const addNewApiKey = await promptWithDefault('Add new API Key? (y/n)', existingApiKeys.length === 0 ? 'y' : 'n');
   if (addNewApiKey.toLowerCase() === 'y') {
-    const apiKey = await promptWithDefault('请输入自定义的API Key (不含sk-前缀，将自动添加)', '');
+    const apiKey = await promptWithDefault('Enter custom API Key (without sk- prefix, will be added automatically)', '');
     if (apiKey) {
       const fullApiKey = apiKey.startsWith('sk-') ? apiKey : `sk-${apiKey}`;
       config.apiKeys[fullApiKey] = [];
     } else {
-      // 如果用户直接回车跳过，默认添加 sk-text
+      // If user skips by pressing Enter, add sk-text by default
       config.apiKeys['sk-text'] = [];
-      console.log('已默认添加API Key: sk-text');
+      console.log('Added API Key by default: sk-text');
     }
   } else if (Object.keys(config.apiKeys).length === 0) {
-    // 如果没有任何API Key，默认添加 sk-text
+    // If no API Key exists, add sk-text by default
     config.apiKeys['sk-text'] = [];
-    console.log('已默认添加API Key: sk-text');
+    console.log('Added API Key by default: sk-text');
   }
 
   return config;
 }
 
-// 生成配置文件
+// Generate configuration file
 function generateEnvFile(config) {
   try {
-    // 准备API Keys
+    // Prepare API Keys
     const apiKeysJson = JSON.stringify(config.apiKeys);
     
-    // 替换模板中的占位符
+    // Replace placeholders in template
     let envContent = ENV_TEMPLATE
       .replace('{API_KEYS_PLACEHOLDER}', apiKeysJson)
       .replace('{USE_TLS_PROXY_PLACEHOLDER}', config.useTlsProxy)
@@ -226,71 +226,71 @@ function generateEnvFile(config) {
       .replace('{PROXY_PLATFORM_PLACEHOLDER}', config.proxyPlatform)
       .replace('{USE_OTHERS_PLACEHOLDER}', config.useOthers);
     
-    // 更新轮询策略
+    // Update rotation strategy
     envContent = envContent.replace('ROTATION_STRATEGY=default', `ROTATION_STRATEGY=${config.rotationStrategy}`);
     
-    // 写入.env文件
+    // Write to .env file
     const envPath = path.join(process.cwd(), '.env');
     
-    // 检查是否存在备份文件
+    // Check if backup file exists
     const backupPath = path.join(process.cwd(), '.env.backup');
     if (fs.existsSync(envPath)) {
-      // 创建备份
+      // Create backup
       fs.copyFileSync(envPath, backupPath);
-      console.log(`\n✅ 已创建原配置文件备份: ${backupPath}`);
+      console.log(`\n✅ Created backup of original config file: ${backupPath}`);
     }
     
     fs.writeFileSync(envPath, envContent, 'utf8');
-    console.log(`\n✅ 配置文件已生成: ${envPath}`);
+    console.log(`\n✅ Configuration file generated: ${envPath}`);
     
-    // 检查data目录
+    // Check data directory
     const dataDir = path.join(process.cwd(), 'data');
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
-      console.log(`✅ 创建数据目录: ${dataDir}`);
+      console.log(`✅ Created data directory: ${dataDir}`);
     }
     
     return true;
   } catch (error) {
-    console.error('\n❌ 生成配置文件时出错:', error.message);
+    console.error('\n❌ Error generating config file:', error.message);
     return false;
   }
 }
 
-// 主函数
+// Main function
 async function main() {
   try {
     const config = await collectConfig();
     
     if (generateEnvFile(config)) {
-      console.log('\n===== 配置完成 =====');
-      console.log('你可以使用以下命令启动服务:');
+      console.log('\n===== Configuration complete =====');
+      console.log('You can use the following command to start the service:');
       console.log('  npm start');
       
-      // 显示TLS代理配置信息
-      console.log(`\n当前TLS代理配置:`);
-      console.log(`- 是否启用TLS代理: ${config.useTlsProxy ? '是' : '否'}`);
+      // Display TLS proxy configuration
+      console.log(`\nCurrent TLS proxy configuration:`);
+      console.log(`- TLS proxy enabled: ${config.useTlsProxy ? 'Yes' : 'No'}`);
       if (config.useTlsProxy) {
-        console.log(`- 是否启用辅助代理服务器: ${config.useOthersProxy ? '是' : '否'}`);
-        console.log(`- 代理服务器平台: ${config.proxyPlatform}`);
+        console.log(`- Auxiliary proxy server enabled: ${config.useOthersProxy ? 'Yes' : 'No'}`);
+        console.log(`- Proxy server platform: ${config.proxyPlatform}`);
       }
 
-      // 显示是否使用其它接口配置信息
-      console.log(`\n当前是否使用其它接口: ${config.useOthers ? '是' : '否'}`);
+      // Display whether other interfaces are used
+      console.log(`\nOther interfaces enabled: ${config.useOthers ? 'Yes' : 'No'}`);
       
-      // 显示轮询策略
-      console.log(`\n当前轮询策略: ${config.rotationStrategy}`);
+      // Display rotation strategy
+      console.log(`\nCurrent rotation strategy: ${config.rotationStrategy}`);
       
-      // 显示API Keys
-      console.log('\n当前配置的API Keys:');
+      // Display API Keys
+      console.log('\nCurrently configured API Keys:');
       Object.keys(config.apiKeys).forEach(key => console.log(`- ${key}`));
     }
   } catch (error) {
-    console.error('\n❌ 配置过程中出错:', error.message);
+    console.error('\n❌ Error during configuration:', error.message);
   } finally {
     rl.close();
   }
 }
 
-// 运行主函数
+// Run main function
 main(); 

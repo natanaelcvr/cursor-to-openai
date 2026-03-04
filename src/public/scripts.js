@@ -1,10 +1,10 @@
-// 模态框相关功能
+// Modal-related functionality
 document.addEventListener('DOMContentLoaded', function() {
-    // 获取所有模态框和关闭按钮
+    // Get all modals and close buttons
     const modals = document.querySelectorAll('.modal');
     const closeBtns = document.querySelectorAll('.close');
     
-    // 关闭所有模态框的函数
+    // Function to close all modals
     function closeAllModals() {
         modals.forEach(modal => {
             modal.style.display = 'none';
@@ -12,12 +12,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.body.classList.remove('modal-open');
     }
     
-    // 为每个关闭按钮添加事件
+    // Add event to each close button
     closeBtns.forEach(btn => {
         btn.onclick = closeAllModals;
     });
     
-    // 点击模态框外部关闭
+    // Close when clicking outside modal
     window.onclick = function(event) {
         modals.forEach(modal => {
             if (event.target == modal) {
@@ -26,34 +26,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 页面加载时获取 API Key 列表和无效Cookie列表
+    // Load API Key list and invalid cookie list on page load
     checkAuth();
     loadApiKeys();
     renderInvalidCookies();
     populateRefreshApiKeySelect();
     populateCookieApiKeySelect();
     
-    // 初始化添加Cookie的标签容器
+    // Initialize add Cookie tag container
     renderAddCookieTags([]);
     
-    // 绑定事件监听器
+    // Bind event listeners
     bindEventListeners();
 
-    // 处理日志按钮点击事件
+    // Handle logs button click
     document.getElementById('logsBtn')?.addEventListener('click', function() {
         window.location.href = '/logs.html';
     });
 });
 
-// 绑定各种事件监听器
+// Bind various event listeners
 function bindEventListeners() {
-    // 表单提交
+    // Form submit
     document.getElementById('addKeyForm').addEventListener('submit', handleAddKeyForm);
     document.getElementById('editCookieForm').addEventListener('submit', handleEditCookieForm);
     document.getElementById('invalidCookieForm').addEventListener('submit', handleInvalidCookieForm);
     
-    // 按钮点击
-    // 注意：testApiBtn可能在页面上出现两次，需要检查元素是否存在
+    // Button clicks
+    // Note: testApiBtn may appear twice on page, check if element exists
     const testApiButtons = document.querySelectorAll('#testApiBtn');
     testApiButtons.forEach(btn => {
         if(btn) btn.addEventListener('click', testApiConnection);
@@ -64,33 +64,33 @@ function bindEventListeners() {
         if(btn) btn.addEventListener('click', clearCacheAndRefresh);
     });
     
-    // 其他按钮
+    // Other buttons
     if(document.getElementById('addNewCookieBtn')) document.getElementById('addNewCookieBtn').addEventListener('click', handleAddNewCookie);
     if(document.getElementById('addCookieBtn')) document.getElementById('addCookieBtn').addEventListener('click', handleAddCookie);
     if(document.getElementById('addInvalidCookieBtn')) document.getElementById('addInvalidCookieBtn').addEventListener('click', handleAddInvalidCookie);
     if(document.getElementById('closeInvalidCookieModal')) document.getElementById('closeInvalidCookieModal').addEventListener('click', closeInvalidCookieModal);
     
-    // 修复刷新Cookie和生成链接按钮的事件绑定
+    // Fix refresh Cookie and generate link button event binding
     const refreshCookieBtn = document.getElementById('refreshCookieBtn');
     if(refreshCookieBtn) {
-        console.log('为refreshCookieBtn绑定事件');
+        console.log('Binding event to refreshCookieBtn');
         refreshCookieBtn.addEventListener('click', handleRefreshCookie);
     }
     
     const generateLinkBtn = document.getElementById('generateLinkBtn');
     if(generateLinkBtn) {
-        console.log('为generateLinkBtn绑定事件');
+        console.log('Binding event to generateLinkBtn');
         generateLinkBtn.addEventListener('click', handleGenerateLink);
     }
     
     if(document.getElementById('logoutBtn')) document.getElementById('logoutBtn').addEventListener('click', handleLogout);
 }
 
-// API Key 管理相关函数
-// 加载现有 API Key
+// API Key management functions
+// Load existing API Keys
 async function loadApiKeys() {
     try {
-        console.log('开始加载API Keys...');
+        console.log('Loading API Keys...');
         const response = await fetch('/v1/api-keys', {
             method: 'GET',
             headers: {
@@ -100,12 +100,12 @@ async function loadApiKeys() {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
         }
         
-        console.log('API响应状态:', response.status);
+        console.log('API response status:', response.status);
         const data = await response.json();
-        console.log('获取到的数据:', data);
+        console.log('Fetched data:', data);
         
         const keyList = document.getElementById('keyList');
         keyList.innerHTML = '';
@@ -115,26 +115,26 @@ async function loadApiKeys() {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td data-title="API Key">${key.key}</td>
-                    <td data-title="Cookie 数量">${key.cookieCount}</td>
-                    <td data-title="操作">
-                        <button class="edit-btn" onclick="editApiKey('${key.key}')">修改</button>
-                        <button class="action-btn" onclick="deleteApiKey('${key.key}')">删除</button>
+                    <td data-title="Cookie Count">${key.cookieCount}</td>
+                    <td data-title="Actions">
+                        <button class="edit-btn" onclick="editApiKey('${key.key}')">Edit</button>
+                        <button class="action-btn" onclick="deleteApiKey('${key.key}')">Delete</button>
                     </td>
                 `;
                 keyList.appendChild(row);
             });
         } else {
-            keyList.innerHTML = '<tr><td colspan="3" data-title="状态">暂无 API Key</td></tr>';
+            keyList.innerHTML = '<tr><td colspan="3" data-title="Status">No API Keys</td></tr>';
         }
     } catch (error) {
-        console.error('加载 API Key 失败:', error);
+        console.error('Failed to load API Keys:', error);
         document.getElementById('keyListMessage').innerHTML = `
-            <div class="error">加载 API Key 失败: ${error.message}</div>
+            <div class="error">Failed to load API Keys: ${error.message}</div>
         `;
     }
 }
 
-// 处理添加/更新 API Key 表单提交
+// Handle add/update API Key form submission
 async function handleAddKeyForm(e) {
     e.preventDefault();
     
@@ -143,12 +143,12 @@ async function handleAddKeyForm(e) {
     
     if (!apiKey) {
         document.getElementById('addKeyMessage').innerHTML = `
-            <div class="error">API Key 不能为空</div>
+            <div class="error">API Key cannot be empty</div>
         `;
         return;
     }
     
-    // 将逗号分隔的 Cookie 值转换为数组
+    // Convert comma-separated Cookie values to array
     const cookieValues = cookieValuesText ? 
         cookieValuesText.split(',').map(cookie => cookie.trim()).filter(cookie => cookie) : 
         [];
@@ -169,28 +169,28 @@ async function handleAddKeyForm(e) {
         
         if (data.success) {
             document.getElementById('addKeyMessage').innerHTML = `
-                <div class="info">API Key 添加/更新成功</div>
+                <div class="info">API Key added/updated successfully</div>
             `;
-            // 等待3秒后再刷新页面
+            // Wait 3 seconds then refresh page
             setTimeout(() => {
                 window.location.reload();
             }, 3000);
         } else {
             document.getElementById('addKeyMessage').innerHTML = `
-                <div class="error">API Key 添加/更新失败: ${data.error}</div>
+                <div class="error">API Key add/update failed: ${data.error}</div>
             `;
         }
     } catch (error) {
-        console.error('添加/更新 API Key 失败:', error);
+        console.error('Add/update API Key failed:', error);
         document.getElementById('addKeyMessage').innerHTML = `
-            <div class="error">添加/更新 API Key 失败: ${error.message}</div>
+            <div class="error">Add/update API Key failed: ${error.message}</div>
         `;
     }
 }
 
-// 删除 API Key
+// Delete API Key
 async function deleteApiKey(apiKey) {
-    if (!confirm(`确定要删除 API Key "${apiKey}" 吗？`)) {
+    if (!confirm(`Are you sure you want to delete API Key "${apiKey}"?`)) {
         return;
     }
     
@@ -203,23 +203,23 @@ async function deleteApiKey(apiKey) {
         
         if (data.success) {
             document.getElementById('keyListMessage').innerHTML = `
-                <div class="info">API Key 删除成功</div>
+                <div class="info">API Key deleted successfully</div>
             `;
             loadApiKeys();
         } else {
             document.getElementById('keyListMessage').innerHTML = `
-                <div class="error">API Key 删除失败: ${data.error}</div>
+                <div class="error">API Key delete failed: ${data.error}</div>
             `;
         }
     } catch (error) {
-        console.error('删除 API Key 失败:', error);
+        console.error('Delete API Key failed:', error);
         document.getElementById('keyListMessage').innerHTML = `
-            <div class="error">删除 API Key 失败: ${error.message}</div>
+            <div class="error">Delete API Key failed: ${error.message}</div>
         `;
     }
 }
 
-// 获取API Key的Cookie值
+// Get Cookie values for API Key
 async function getCookiesForApiKey(apiKey) {
     try {
         const response = await fetch(`/v1/api-keys/${encodeURIComponent(apiKey)}/cookies`, {
@@ -231,52 +231,52 @@ async function getCookiesForApiKey(apiKey) {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
         return data.cookies;
     } catch (error) {
-        console.error(`获取 ${apiKey} 的Cookie值失败:`, error);
+        console.error(`Failed to get Cookie values for ${apiKey}:`, error);
         throw error;
     }
 }
 
-// 修改 API Key
+// Edit API Key
 async function editApiKey(apiKey) {
     try {
         document.getElementById('editModalMessage').innerHTML = '';
         document.getElementById('editApiKey').value = apiKey;
         
-        // 获取当前Cookie值
+        // Get current Cookie values
         const cookies = await getCookiesForApiKey(apiKey);
         
-        // 更新隐藏的textarea
+        // Update hidden textarea
         document.getElementById('editCookieValues').value = cookies.join(',');
         
-        // 更新Cookie标签容器
+        // Update Cookie tag container
         renderCookieTags(cookies);
         
-        // 清空新Cookie输入框
+        // Clear new Cookie input
         document.getElementById('newCookie').value = '';
         
-        // 显示模态框
+        // Show modal
         const modal = document.getElementById('editModal');
         modal.style.display = 'block';
         document.body.classList.add('modal-open');
         
     } catch (error) {
-        console.error('打开修改模态框失败:', error);
+        console.error('Failed to open edit modal:', error);
         document.getElementById('editModalMessage').innerHTML = `
-            <div class="error">无法加载Cookie数据: ${error.message}</div>
+            <div class="error">Unable to load Cookie data: ${error.message}</div>
         `;
         const modal = document.getElementById('editModal');
-        modal.style.display = 'block'; // 即使出错也显示模态框，以便显示错误信息
+        modal.style.display = 'block'; // Show modal even on error to display error message
         document.body.classList.add('modal-open');
     }
 }
 
-// 获取API Keys的辅助函数
+// Helper to get API Keys
 async function getApiKeys() {
     const response = await fetch('/v1/api-keys', {
         method: 'GET',
@@ -287,27 +287,27 @@ async function getApiKeys() {
     });
     
     if (!response.ok) {
-        throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
     return data.success ? data.apiKeys : [];
 }
 
-// 复制文本到剪贴板的通用函数
+// Generic function to copy text to clipboard
 async function copyTextToClipboard(text) {
     try {
         await navigator.clipboard.writeText(text);
         return true;
     } catch (err) {
-        console.error('复制到剪贴板失败:', err);
+        console.error('Failed to copy to clipboard:', err);
         
-        // 如果navigator.clipboard不可用，使用备用方法
+        // If navigator.clipboard unavailable, use fallback
         try {
             const textArea = document.createElement('textarea');
             textArea.value = text;
             
-            // 将元素设置为看不见
+            // Make element invisible
             textArea.style.position = 'fixed';
             textArea.style.top = '0';
             textArea.style.left = '0';
@@ -327,13 +327,13 @@ async function copyTextToClipboard(text) {
             document.body.removeChild(textArea);
             return successful;
         } catch (fallbackErr) {
-            console.error('备用复制方法失败:', fallbackErr);
+            console.error('Fallback copy method failed:', fallbackErr);
             return false;
         }
     }
 }
 
-// 显示复制成功弹窗提示
+// Show copy success toast
 function showCopyToast(success) {
     const toast = document.createElement('div');
     toast.style.position = 'fixed';
@@ -348,11 +348,11 @@ function showCopyToast(success) {
     if (success) {
         toast.style.backgroundColor = '#28a745';
         toast.style.color = 'white';
-        toast.textContent = '复制成功！';
+        toast.textContent = 'Copy successful';
     } else {
         toast.style.backgroundColor = '#dc3545';
         toast.style.color = 'white';
-        toast.textContent = '复制失败，请手动复制';
+        toast.textContent = 'Copy failed, please copy manually';
     }
     
     document.body.appendChild(toast);
@@ -366,52 +366,52 @@ function showCopyToast(success) {
     }, 2000);
 }
 
-// 处理复制Cookie按钮点击
+// Handle copy Cookie button click
 async function handleCopyCookie(cookie) {
     const success = await copyTextToClipboard(cookie);
     showCopyToast(success);
 }
 
-// Cookie管理相关函数
-// 渲染Cookie标签
+// Cookie management functions
+// Render Cookie tags
 function renderCookieTags(cookies) {
     const container = document.getElementById('cookieTagsContainer');
     container.innerHTML = '';
     
     if (cookies.length === 0) {
-        container.innerHTML = '<div style="padding: 10px; color: #666;">暂无Cookie，请添加</div>';
+        container.innerHTML = '<div style="padding: 10px; color: #666;">No cookies, please add some</div>';
         return;
     }
     
     cookies.forEach((cookie, index) => {
-        // 创建标签
+        // Create tag
         const tag = document.createElement('span');
         tag.className = 'cookie-tag';
         
-        // 对短文本添加特殊类
+        // Add special class for short text
         if (cookie.length < 5) {
             tag.classList.add('short-cookie');
         }
         
-        // 截断Cookie显示
+        // Truncate Cookie for display
         const displayText = cookie.length > 20 ? 
             cookie.substring(0, 8) + '...' + cookie.substring(cookie.length - 8) : 
             cookie;
         
-        tag.title = cookie; // 完整Cookie作为工具提示
+        tag.title = cookie; // Full Cookie as tooltip
         
-        // 增加对移动端友好的结构，添加复制按钮
+        // Mobile-friendly structure with copy button
         tag.innerHTML = `
             <span class="cookie-text-content">${displayText}</span>
             <div class="cookie-buttons">
-                <button type="button" class="copy-btn" data-cookie="${cookie}" aria-label="复制">C</button>
-                <button type="button" class="delete-cookie" data-index="${index}" aria-label="删除">×</button>
+                <button type="button" class="copy-btn" data-cookie="${cookie}" aria-label="Copy">C</button>
+                <button type="button" class="delete-cookie" data-index="${index}" aria-label="Delete">×</button>
             </div>
         `;
         container.appendChild(tag);
     });
     
-    // 添加删除按钮的事件监听
+    // Add delete button event listeners
     document.querySelectorAll('.delete-cookie').forEach(btn => {
         btn.addEventListener('click', function() {
             const index = parseInt(this.getAttribute('data-index'));
@@ -419,7 +419,7 @@ function renderCookieTags(cookies) {
         });
     });
     
-    // 添加复制按钮的事件监听
+    // Add copy button event listeners
     document.querySelectorAll('.copy-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const cookie = this.getAttribute('data-cookie');
@@ -428,23 +428,23 @@ function renderCookieTags(cookies) {
     });
 }
 
-// 删除Cookie标签
+// Delete Cookie tag
 function deleteCookieTag(index) {
-    // 从隐藏的textarea中获取当前的cookies
+    // Get current cookies from hidden textarea
     const cookieValuesElem = document.getElementById('editCookieValues');
     let cookies = cookieValuesElem.value.split(',').map(c => c.trim()).filter(c => c);
     
-    // 删除指定索引的cookie
+    // Remove cookie at specified index
     cookies.splice(index, 1);
     
-    // 更新隐藏的textarea
+    // Update hidden textarea
     cookieValuesElem.value = cookies.join(',');
     
-    // 重新渲染标签
+    // Re-render tags
     renderCookieTags(cookies);
 }
 
-// 处理添加新Cookie
+// Handle add new Cookie
 function handleAddCookie() {
     const newCookieInput = document.getElementById('newCookie');
     const newCookie = newCookieInput.value.trim();
@@ -453,26 +453,26 @@ function handleAddCookie() {
         return;
     }
     
-    // 获取当前的cookies
+    // Get current cookies
     const cookieValuesElem = document.getElementById('editCookieValues');
     let cookies = cookieValuesElem.value ? 
         cookieValuesElem.value.split(',').map(c => c.trim()).filter(c => c) : 
         [];
     
-    // 添加新cookie
+    // Add new cookie
     cookies.push(newCookie);
     
-    // 更新隐藏的textarea
+    // Update hidden textarea
     cookieValuesElem.value = cookies.join(',');
     
-    // 重新渲染标签
+    // Re-render tags
     renderCookieTags(cookies);
     
-    // 清空输入框
+    // Clear input
     newCookieInput.value = '';
 }
 
-// 处理编辑表单提交
+// Handle edit form submission
 async function handleEditCookieForm(e) {
     e.preventDefault();
     
@@ -481,12 +481,12 @@ async function handleEditCookieForm(e) {
     
     if (!apiKey) {
         document.getElementById('editModalMessage').innerHTML = `
-            <div class="error">API Key不能为空</div>
+            <div class="error">API Key cannot be empty</div>
         `;
         return;
     }
     
-    // 将逗号分隔的 Cookie 值转换为数组
+    // Convert comma-separated Cookie values to array
     const cookieValues = cookieValuesText ? 
         cookieValuesText.split(',').map(cookie => cookie.trim()).filter(cookie => cookie) : 
         [];
@@ -507,7 +507,7 @@ async function handleEditCookieForm(e) {
         
         if (data.success) {
             document.getElementById('editModalMessage').innerHTML = `
-                <div class="info">Cookie 修改成功</div>
+                <div class="info">Cookie modified successfully</div>
             `;
             setTimeout(() => {
                 document.getElementById('editModal').style.display = 'none';
@@ -515,24 +515,24 @@ async function handleEditCookieForm(e) {
             }, 1500);
         } else {
             document.getElementById('editModalMessage').innerHTML = `
-                <div class="error">Cookie 修改失败: ${data.error}</div>
+                <div class="error">Cookie modification failed: ${data.error}</div>
             `;
         }
     } catch (error) {
-        console.error('修改 Cookie 失败:', error);
+        console.error('Modify Cookie failed:', error);
         document.getElementById('editModalMessage').innerHTML = `
-            <div class="error">修改 Cookie 失败: ${error.message}</div>
+            <div class="error">Modify Cookie failed: ${error.message}</div>
         `;
     }
 }
 
-// 渲染添加API Key表单中的Cookie标签
+// Render Cookie tags in add API Key form
 function renderAddCookieTags(cookies) {
     const container = document.getElementById('addCookieTagsContainer');
     container.innerHTML = '';
     
     if (cookies.length === 0) {
-        container.innerHTML = '<div style="padding: 10px; color: #666;">暂无Cookie，请添加</div>';
+        container.innerHTML = '<div style="padding: 10px; color: #666;">No cookies, please add some</div>';
         return;
     }
     
@@ -540,7 +540,7 @@ function renderAddCookieTags(cookies) {
         const tag = document.createElement('span');
         tag.className = 'cookie-tag';
         
-        // 对短文本添加特殊类
+        // Add special class for short text
         if (cookie.length < 5) {
             tag.classList.add('short-cookie');
         }
@@ -551,12 +551,12 @@ function renderAddCookieTags(cookies) {
         
         tag.title = cookie;
         
-        // 增加对移动端友好的结构，添加复制按钮
+        // Mobile-friendly structure with copy button
         tag.innerHTML = `
             <span class="cookie-text-content">${displayText}</span>
             <div class="cookie-buttons">
-                <button type="button" class="copy-btn" data-cookie="${cookie}" aria-label="复制">C</button>
-                <button type="button" class="delete-add-cookie" data-index="${index}" aria-label="删除">×</button>
+                <button type="button" class="copy-btn" data-cookie="${cookie}" aria-label="Copy">C</button>
+                <button type="button" class="delete-add-cookie" data-index="${index}" aria-label="Delete">×</button>
             </div>
         `;
         container.appendChild(tag);
@@ -569,7 +569,7 @@ function renderAddCookieTags(cookies) {
         });
     });
     
-    // 添加复制按钮的事件监听
+    // Add copy button event listeners
     document.querySelectorAll('.copy-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const cookie = this.getAttribute('data-cookie');
@@ -578,7 +578,7 @@ function renderAddCookieTags(cookies) {
     });
 }
 
-// 删除添加表单中的Cookie标签
+// Delete Cookie tag from add form
 function deleteAddCookieTag(index) {
     const cookieValuesElem = document.getElementById('cookieValues');
     let cookies = cookieValuesElem.value ? 
@@ -590,7 +590,7 @@ function deleteAddCookieTag(index) {
     renderAddCookieTags(cookies);
 }
 
-// 处理添加新Cookie标签到添加表单
+// Handle add new Cookie tag to add form
 function handleAddNewCookie() {
     const newCookieInput = document.getElementById('addNewCookie');
     const newCookie = newCookieInput.value.trim();
@@ -610,8 +610,8 @@ function handleAddNewCookie() {
     newCookieInput.value = '';
 }
 
-// 无效Cookie管理相关函数
-// 获取无效Cookie列表
+// Invalid Cookie management functions
+// Get invalid Cookie list
 async function getInvalidCookies() {
     try {
         const response = await fetch('/v1/invalid-cookies', {
@@ -623,18 +623,18 @@ async function getInvalidCookies() {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
         return data.invalidCookies;
     } catch (error) {
-        console.error('获取无效Cookie失败:', error);
+        console.error('Failed to get invalid cookies:', error);
         throw error;
     }
 }
 
-// 清除特定无效Cookie
+// Clear specific invalid Cookie
 async function clearInvalidCookie(cookie) {
     try {
         const response = await fetch(`/v1/invalid-cookies/${encodeURIComponent(cookie)}`, {
@@ -646,18 +646,18 @@ async function clearInvalidCookie(cookie) {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
         return data.success;
     } catch (error) {
-        console.error(`清除无效Cookie失败:`, error);
+        console.error('Failed to clear invalid cookie:', error);
         throw error;
     }
 }
 
-// 清除所有无效Cookie
+// Clear all invalid cookies
 async function clearAllInvalidCookies() {
     try {
         const response = await fetch('/v1/invalid-cookies', {
@@ -669,18 +669,18 @@ async function clearAllInvalidCookies() {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
         return data.success;
     } catch (error) {
-        console.error('清除所有无效Cookie失败:', error);
+        console.error('Failed to clear all invalid cookies:', error);
         throw error;
     }
 }
 
-// 渲染无效Cookie列表
+// Render invalid Cookie list
 async function renderInvalidCookies() {
     const container = document.getElementById('invalidCookiesContainer');
     
@@ -688,20 +688,20 @@ async function renderInvalidCookies() {
         const invalidCookies = await getInvalidCookies();
         
         if (invalidCookies.length === 0) {
-            container.innerHTML = '<div class="info">没有检测到无效Cookie</div>';
+            container.innerHTML = '<div class="info">No invalid cookies detected</div>';
             return;
         }
         
-        let html = '<div class="table-responsive"><table><thead><tr><th>无效Cookie</th><th>数量</th><th>操作</th></tr></thead><tbody>';
+        let html = '<div class="table-responsive"><table><thead><tr><th>Invalid Cookie</th><th>Count</th><th>Actions</th></tr></thead><tbody>';
         
-        // 展示为一行，类似于API Key列表
+        // Display as single row, similar to API Key list
         html += `
             <tr>
-                <td data-title="无效Cookie">无效Cookie</td>
-                <td data-title="数量">${invalidCookies.length}</td>
-                <td data-title="操作">
-                    <button class="edit-btn" id="editInvalidCookiesBtn">修改</button>
-                    <button class="action-btn" id="clearAllInvalidCookiesInTable">删除</button>
+                <td data-title="Invalid Cookie">Invalid Cookie</td>
+                <td data-title="Count">${invalidCookies.length}</td>
+                <td data-title="Actions">
+                    <button class="edit-btn" id="editInvalidCookiesBtn">Edit</button>
+                    <button class="action-btn" id="clearAllInvalidCookiesInTable">Delete</button>
                 </td>
             </tr>
         `;
@@ -709,31 +709,31 @@ async function renderInvalidCookies() {
         html += '</tbody></table></div>';
         container.innerHTML = html;
         
-        // 添加按钮事件监听
+        // Add button event listeners
         document.getElementById('editInvalidCookiesBtn').addEventListener('click', openInvalidCookieModal);
         document.getElementById('clearAllInvalidCookiesInTable').addEventListener('click', handleClearAllInvalidCookies);
         
     } catch (error) {
-        container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+        container.innerHTML = `<div class="error">Load failed: ${error.message}</div>`;
     }
 }
 
-// 处理清除所有无效Cookie按钮事件
+// Handle clear all invalid cookies button
 async function handleClearAllInvalidCookies() {
     try {
         await clearAllInvalidCookies();
-        showMessage('invalidCookiesContainer', '所有无效Cookie已清除', 'info');
-        renderInvalidCookies(); // 重新渲染列表
+        showMessage('invalidCookiesContainer', 'All invalid cookies cleared', 'info');
+        renderInvalidCookies(); // Re-render list
     } catch (error) {
-        showMessage('invalidCookiesContainer', `清除失败: ${error.message}`, 'error');
+        showMessage('invalidCookiesContainer', `Clear failed: ${error.message}`, 'error');
     }
 }
 
-// API 测试相关函数
-// 测试API连接
+// API test functions
+// Test API connection
 async function testApiConnection() {
     const resultDiv = document.getElementById('testApiResult');
-    resultDiv.innerHTML = '<div class="info">正在测试API连接...</div>';
+    resultDiv.innerHTML = '<div class="info">Testing API connection...</div>';
     
     try {
         const response = await fetch('/v1/api-keys', {
@@ -744,23 +744,23 @@ async function testApiConnection() {
             }
         });
         
-        resultDiv.innerHTML = `<div class="info">API响应状态: ${response.status}</div>`;
+        resultDiv.innerHTML = `<div class="info">API response status: ${response.status}</div>`;
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
-        resultDiv.innerHTML += `<div class="info">获取到的数据: ${JSON.stringify(data)}</div>`;
+        resultDiv.innerHTML += `<div class="info">Fetched data: ${JSON.stringify(data)}</div>`;
     } catch (error) {
-        console.error('测试API失败:', error);
-        resultDiv.innerHTML = `<div class="error">测试API失败: ${error.message}</div>`;
+        console.error('API test failed:', error);
+        resultDiv.innerHTML = `<div class="error">API test failed: ${error.message}</div>`;
     }
 }
 
-// 清除缓存并刷新
+// Clear cache and refresh
 function clearCacheAndRefresh() {
-    // 清除缓存
+    // Clear cache
     if ('caches' in window) {
         caches.keys().then(function(names) {
             for (let name of names) {
@@ -769,67 +769,67 @@ function clearCacheAndRefresh() {
         });
     }
     
-    // 强制刷新页面（绕过缓存）
+    // Force refresh page (bypass cache)
     window.location.reload(true);
 }
 
-// 显示消息的通用函数
+// Generic function to show message
 function showMessage(containerId, message, type) {
     const container = document.getElementById(containerId);
     container.innerHTML = `<div class="${type}">${message}</div>`;
 }
 
-// Cookie刷新相关函数
-// 填充刷新API Key的下拉选择框
+// Cookie refresh functions
+// Populate refresh API Key dropdown
 async function populateRefreshApiKeySelect() {
     try {
         const apiKeys = await getApiKeys();
         const select = document.getElementById('refreshApiKey');
         
-        // 清空现有选项（保留"所有API Key"选项）
+        // Clear existing options (keep "All API Keys" option)
         while (select.options.length > 1) {
             select.remove(1);
         }
         
-        // 添加API Key选项
+        // Add API Key options
         apiKeys.forEach(key => {
             const option = document.createElement('option');
             option.value = key.key;
-            option.textContent = `${key.key} (${key.cookieCount} 个Cookie)`;
+            option.textContent = `${key.key} (${key.cookieCount} cookies)`;
             select.appendChild(option);
         });
     } catch (error) {
-        console.error('加载API Key选项失败:', error);
+        console.error('Failed to load API Key options:', error);
     }
 }
 
-// 处理刷新Cookie按钮事件
+// Handle refresh Cookie button
 async function handleRefreshCookie() {
-    console.log('刷新Cookie按钮被点击');
+    console.log('Refresh Cookie button clicked');
     const refreshBtn = document.getElementById('refreshCookieBtn');
     const apiKey = document.getElementById('refreshApiKey').value;
     const statusContainer = document.getElementById('refreshStatusContainer');
     const statusText = document.getElementById('refreshStatus');
     const progressBar = document.getElementById('refreshProgress');
     
-    // 显示调试信息
-    showMessage('refreshCookieMessage', '正在准备发送请求...', 'info');
+    // Show debug info
+    showMessage('refreshCookieMessage', 'Preparing to send request...', 'info');
     
-    // 禁用按钮，显示状态容器
+    // Disable button, show status container
     refreshBtn.disabled = true;
     statusContainer.style.display = 'block';
-    statusText.textContent = '正在发送刷新请求...';
+    statusText.textContent = 'Sending refresh request...';
     progressBar.value = 10;
     
     try {
-        // 构建请求URL
+        // Build request URL
         let url = '/v1/refresh-cookies';
         if (apiKey) {
             url += `?apiKey=${encodeURIComponent(apiKey)}`;
         }
         
-        // 发送刷新请求
-        statusText.textContent = '正在发送刷新请求...';
+        // Send refresh request
+        statusText.textContent = 'Sending refresh request...';
         progressBar.value = 20;
         
         const response = await fetch(url, {
@@ -841,15 +841,15 @@ async function handleRefreshCookie() {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
         }
         
-        // 显示长时间等待提示
-        statusText.textContent = '刷新请求已发送，请耐心等待2-12分钟...';
+        // Show long wait message
+        statusText.textContent = 'Refresh request sent, please wait 2-12 minutes...';
         progressBar.value = 50;
-        showMessage('refreshCookieMessage', '刷新请求已发送，由于需要访问Cursor官网获取新Cookie，整个过程可能需要2-12分钟，请耐心等待。您可以关闭此页面，稍后再来查看结果。', 'info');
+        showMessage('refreshCookieMessage', 'Refresh request sent. Fetching new Cookies from Cursor may take 2-12 minutes. You may close this page and check back later.', 'info');
         
-        // 启动定时检查刷新状态
+        // Start periodic refresh status check
         let checkInterval = setInterval(async () => {
             try {
                 const statusResponse = await fetch('/v1/refresh-status', {
@@ -860,61 +860,61 @@ async function handleRefreshCookie() {
                 });
                 
                 if (!statusResponse.ok) {
-                    throw new Error(`HTTP错误: ${statusResponse.status} ${statusResponse.statusText}`);
+                    throw new Error(`HTTP error: ${statusResponse.status} ${statusResponse.statusText}`);
                 }
                 
                 const statusData = await statusResponse.json();
                 const refreshData = statusData.data;
                 
-                // 更新状态信息
-                statusText.textContent = refreshData.message || '正在刷新...';
+                // Update status info
+                statusText.textContent = refreshData.message || 'Refreshing...';
                 
-                // 根据状态更新进度条和UI
+                // Update progress bar and UI based on status
                 if (refreshData.status === 'completed') {
-                    // 刷新完成
+                    // Refresh complete
                     progressBar.value = 100;
-                    statusText.textContent = `刷新完成: ${refreshData.message}`;
+                    statusText.textContent = `Refresh complete: ${refreshData.message}`;
                     clearInterval(checkInterval);
                     
-                    // 重新加载API Key列表
+                    // Reload API Key list
                     await loadApiKeys();
                     await populateRefreshApiKeySelect();
                     
-                    // 显示成功消息
-                    showMessage('refreshCookieMessage', `刷新完成: ${refreshData.message}`, 'success');
+                    // Show success message
+                    showMessage('refreshCookieMessage', `Refresh complete: ${refreshData.message}`, 'success');
                     
-                    // 启用按钮
+                    // Enable button
                     refreshBtn.disabled = false;
                     
-                    // 3秒后隐藏状态容器
+                    // Hide status container after 3 seconds
                     setTimeout(() => {
                         statusContainer.style.display = 'none';
                     }, 3000);
                 } else if (refreshData.status === 'failed') {
-                    // 刷新失败
+                    // Refresh failed
                     progressBar.value = 0;
-                    statusText.textContent = `刷新失败: ${refreshData.message}`;
+                    statusText.textContent = `Refresh failed: ${refreshData.message}`;
                     clearInterval(checkInterval);
                     
-                    // 显示错误消息
-                    showMessage('refreshCookieMessage', `刷新失败: ${refreshData.message}`, 'error');
+                    // Show error message
+                    showMessage('refreshCookieMessage', `Refresh failed: ${refreshData.message}`, 'error');
                     
-                    // 启用按钮
+                    // Enable button
                     refreshBtn.disabled = false;
                 } else if (refreshData.status === 'running') {
-                    // 正在刷新
+                    // Refreshing
                     progressBar.value = 75;
                 } else if (!refreshData.isRunning) {
-                    // 未知状态但不在运行
+                    // Unknown state but not running
                     clearInterval(checkInterval);
                     refreshBtn.disabled = false;
                 }
             } catch (error) {
-                console.error('检查刷新状态失败:', error);
+                console.error('Failed to check refresh status:', error);
             }
-        }, 5000); // 每5秒检查一次
+        }, 5000); // Check every 5 seconds
         
-        // 设置超时检查，12分钟后如果还没完成就停止检查
+        // Set timeout - stop checking after 12 minutes if not complete
         setTimeout(() => {
             if (checkInterval) {
                 clearInterval(checkInterval);
@@ -923,28 +923,28 @@ async function handleRefreshCookie() {
             }
         }, 720000);
     } catch (error) {
-        console.error('刷新Cookie失败:', error);
-        statusText.textContent = '刷新请求发送失败';
+        console.error('Refresh Cookie failed:', error);
+        statusText.textContent = 'Failed to send refresh request';
         progressBar.value = 0;
-        showMessage('refreshCookieMessage', `刷新请求发送失败: ${error.message}`, 'error');
+        showMessage('refreshCookieMessage', `Failed to send refresh request: ${error.message}`, 'error');
         refreshBtn.disabled = false;
     }
 }
 
-// 获取Cookie相关函数
-// 为Cookie获取功能填充API Key下拉框
+// Get Cookie functions
+// Populate API Key dropdown for Cookie retrieval
 function populateCookieApiKeySelect() {
     populateRefreshApiKeySelect().then(() => {
-        // 复制refreshApiKey的选项到targetApiKey
+        // Copy refreshApiKey options to targetApiKey
         const sourceSelect = document.getElementById('refreshApiKey');
         const targetSelect = document.getElementById('targetApiKey');
         
-        // 保留第一个选项（"所有API Key"）
+        // Keep first option ("All API Keys")
         while (targetSelect.options.length > 1) {
             targetSelect.remove(1);
         }
         
-        // 复制选项
+        // Copy options
         for (let i = 1; i < sourceSelect.options.length; i++) {
             const option = document.createElement('option');
             option.value = sourceSelect.options[i].value;
@@ -954,9 +954,9 @@ function populateCookieApiKeySelect() {
     });
 }
 
-// 处理生成登录链接
+// Handle generate login link
 async function handleGenerateLink() {
-    console.log('生成登录链接按钮被点击');
+    console.log('Generate login link button clicked');
     const messageContainer = document.getElementById('getCookieMessage');
     const linkContainer = document.getElementById('loginLinkContainer');
     const loginLink = document.getElementById('loginLink');
@@ -965,10 +965,10 @@ async function handleGenerateLink() {
     const targetApiKey = document.getElementById('targetApiKey').value;
 
     try {
-        // 显示加载状态
-        messageContainer.innerHTML = '<div class="info">正在生成登录链接...</div>';
+        // Show loading state
+        messageContainer.innerHTML = '<div class="info">Generating login link...</div>';
         
-        // 请求生成登录链接
+        // Request to generate login link
         const response = await fetch('/v1/generate-cookie-link', {
             method: 'POST',
             headers: {
@@ -979,55 +979,55 @@ async function handleGenerateLink() {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
         
         if (!data.success) {
-            throw new Error(data.message || '生成链接失败');
+            throw new Error(data.message || 'Failed to generate link');
         }
         
-        // 显示链接
+        // Show link
         loginLink.href = data.url;
         loginLink.textContent = data.url;
         linkContainer.style.display = 'block';
         
-        // 更新状态
-        pollStatusText.textContent = '等待用户登录...';
+        // Update status
+        pollStatusText.textContent = 'Waiting for user login...';
         pollProgress.value = 10;
         
-        // 开始轮询获取cookie状态
-        messageContainer.innerHTML = '<div class="info">链接已生成，请点击链接登录Cursor账号并授权</div>';
+        // Start polling for cookie status
+        messageContainer.innerHTML = '<div class="info">Link generated. Click the link to log in to Cursor and authorize</div>';
         
-        // 开始轮询cookie状态
+        // Start polling cookie status
         pollForCookieStatus(data.uuid);
         
     } catch (error) {
-        console.error('生成登录链接失败:', error);
-        messageContainer.innerHTML = `<div class="error">生成链接失败: ${error.message}</div>`;
+        console.error('Failed to generate login link:', error);
+        messageContainer.innerHTML = `<div class="error">Failed to generate link: ${error.message}</div>`;
     }
 }
 
-// 轮询Cookie获取状态
+// Poll for Cookie retrieval status
 function pollForCookieStatus(uuid) {
     const messageContainer = document.getElementById('getCookieMessage');
     const pollStatusText = document.getElementById('pollStatusText');
     const pollProgress = document.getElementById('pollProgress');
-    const maxAttempts = 300; // 最多尝试300次，相当于5分钟（原来是120次，2分钟）
+    const maxAttempts = 300; // Max 300 attempts, ~5 minutes
     let attempt = 0;
     
-    // 更新状态显示
-    pollStatusText.textContent = '等待用户登录...';
+    // Update status display
+    pollStatusText.textContent = 'Waiting for user login...';
     
     const interval = setInterval(function() {
         attempt++;
         
         try {
-            // 更新进度条（保持在10%-90%之间，表示等待中）
-            pollProgress.value = 10 + Math.min(80, attempt / 3.75); // 调整进度条速度以适应5分钟
+            // Update progress bar (10%-90% indicates waiting)
+            pollProgress.value = 10 + Math.min(80, attempt / 3.75); // Adjust progress bar speed for 5 min
             
-            // 请求检查状态
+            // Request to check status
             fetch(`/v1/check-cookie-status?uuid=${encodeURIComponent(uuid)}`, {
                 method: 'GET',
                 headers: {
@@ -1035,56 +1035,56 @@ function pollForCookieStatus(uuid) {
                 }
             }).then(function(response) {
                 if (!response.ok) {
-                    pollStatusText.textContent = `请求失败: ${response.status}`;
+                    pollStatusText.textContent = `Request failed: ${response.status}`;
                     return;
                 }
                 
                 return response.json();
             }).then(function(data) {
                 if (data.success) {
-                    // Cookie获取成功
+                    // Cookie obtained successfully
                     clearInterval(interval);
                     pollProgress.value = 100;
-                    pollStatusText.textContent = '获取Cookie成功！';
-                    messageContainer.innerHTML = `<div class="info">成功获取并添加Cookie！${data.message || ''}</div>`;
+                    pollStatusText.textContent = 'Cookie obtained successfully!';
+                    messageContainer.innerHTML = `<div class="info">Cookie obtained and added successfully!${data.message || ''}</div>`;
                     
-                    // 刷新API Keys列表
+                    // Refresh API Keys list
                     loadApiKeys();
                     populateCookieApiKeySelect();
                     
                 } else if (data.status === 'waiting') {
-                    // 继续等待
-                    pollStatusText.textContent = '等待用户登录...';
+                    // Continue waiting
+                    pollStatusText.textContent = 'Waiting for user login...';
                 } else if (data.status === 'failed') {
-                    // 获取失败
+                    // Get failed
                     clearInterval(interval);
-                    pollStatusText.textContent = '获取失败';
+                    pollStatusText.textContent = 'Get failed';
                     pollProgress.value = 0;
-                    messageContainer.innerHTML = `<div class="error">获取Cookie失败: ${data.message || '未知错误'}</div>`;
+                    messageContainer.innerHTML = `<div class="error">Failed to get Cookie: ${data.message || 'Unknown error'}</div>`;
                 }
             }).catch(function(error) {
-                console.error('轮询Cookie状态失败:', error);
-                pollStatusText.textContent = `轮询出错: ${error.message}`;
+                console.error('Cookie status poll failed:', error);
+                pollStatusText.textContent = `Poll error: ${error.message}`;
             });
             
         } catch (error) {
-            console.error('轮询Cookie状态出错:', error);
-            pollStatusText.textContent = `轮询出错: ${error.message}`;
+            console.error('Cookie status poll error:', error);
+            pollStatusText.textContent = `Poll error: ${error.message}`;
         }
         
-        // 达到最大尝试次数后停止
+        // Stop after max attempts
         if (attempt >= maxAttempts) {
             clearInterval(interval);
-            pollStatusText.textContent = '超时，请重试';
+            pollStatusText.textContent = 'Timeout, please retry';
             pollProgress.value = 0;
-            messageContainer.innerHTML = '<div class="error">获取Cookie超时，请重新尝试</div>';
+            messageContainer.innerHTML = '<div class="error">Cookie acquisition timeout, please try again</div>';
         }
         
-    }, 1000); // 每秒轮询一次
+    }, 1000); // Poll every second
 }
 
-// 授权相关函数
-// 检查登录状态
+// Auth functions
+// Check login status
 function checkAuth() {
     const token = localStorage.getItem('adminToken');
     if (!token) {
@@ -1092,7 +1092,7 @@ function checkAuth() {
         return;
     }
     
-    // 验证token
+    // Verify token
     fetch('/v1/admin/verify', {
         headers: {
             'Authorization': `Bearer ${token}`
@@ -1104,33 +1104,33 @@ function checkAuth() {
             localStorage.removeItem('adminToken');
             window.location.href = '/login.html';
         } else {
-            // 更新为新的用户名显示方式
+            // Update to new username display
             const usernameElem = document.getElementById('usernameText');
             if (usernameElem) {
                 usernameElem.textContent = data.username;
             } else {
-                // 兼容旧版模板，可能没有usernameText元素
+                // Fallback for old template without usernameText
                 const adminElem = document.getElementById('adminUsername');
                 if (adminElem) {
-                    adminElem.textContent = `管理员：${data.username}`;
+                    adminElem.textContent = `Admin: ${data.username}`;
                 }
             }
         }
     })
     .catch(error => {
-        console.error('验证失败:', error);
+        console.error('Verification failed:', error);
         localStorage.removeItem('adminToken');
         window.location.href = '/login.html';
     });
 }
 
-// 处理退出登录
+// Handle logout
 function handleLogout() {
     localStorage.removeItem('adminToken');
     window.location.href = '/login.html';
 }
 
-// 添加token到所有API请求
+// Add token to all API requests
 function addAuthHeader(headers = {}) {
     const token = localStorage.getItem('adminToken');
     return {
@@ -1139,11 +1139,11 @@ function addAuthHeader(headers = {}) {
     };
 }
 
-// 修改所有fetch请求，添加token
+// Modify all fetch requests to add token
 (function() {
     const originalFetch = window.fetch;
     window.fetch = function(url, options = {}) {
-        // 只对管理页面的API请求添加token
+        // Add token only for admin page API requests
         if (url.includes('/v1/api-keys') || 
             url.includes('/v1/invalid-cookies') || 
             url.includes('/v1/refresh-cookies') ||
@@ -1156,8 +1156,8 @@ function addAuthHeader(headers = {}) {
     };
 })();
 
-// 无效Cookie模态窗口相关函数
-// 打开无效Cookie模态窗口
+// Invalid Cookie modal functions
+// Open invalid Cookie modal
 async function openInvalidCookieModal() {
     try {
         document.getElementById('invalidCookieModalMessage').innerHTML = '';
@@ -1169,57 +1169,57 @@ async function openInvalidCookieModal() {
         modal.style.display = 'block';
         document.body.classList.add('modal-open');
     } catch (error) {
-        console.error('打开无效Cookie模态框失败:', error);
-        showMessage('invalidCookiesContainer', `加载无效Cookie失败: ${error.message}`, 'error');
+        console.error('Failed to open invalid Cookie modal:', error);
+        showMessage('invalidCookiesContainer', `Failed to load invalid cookies: ${error.message}`, 'error');
     }
 }
 
-// 关闭无效Cookie模态框
+// Close invalid Cookie modal
 function closeInvalidCookieModal() {
     const modal = document.getElementById('invalidCookieModal');
     modal.style.display = 'none';
     document.body.classList.remove('modal-open');
 }
 
-// 渲染无效Cookie标签
+// Render invalid Cookie tags
 function renderInvalidCookieTags(cookies) {
     const container = document.getElementById('invalidCookieTagsContainer');
     container.innerHTML = '';
     
     if (cookies.length === 0) {
-        container.innerHTML = '<div style="padding: 10px; color: #666;">暂无无效Cookie</div>';
+        container.innerHTML = '<div style="padding: 10px; color: #666;">No invalid cookies</div>';
         return;
     }
     
     cookies.forEach((cookie, index) => {
-        // 创建标签
+        // Create tag
         const tag = document.createElement('span');
         tag.className = 'cookie-tag';
         
-        // 对短文本添加特殊类
+        // Add special class for short text
         if (cookie.length < 5) {
             tag.classList.add('short-cookie');
         }
         
-        // 截断Cookie显示
+        // Truncate Cookie for display
         const displayText = cookie.length > 20 ? 
             cookie.substring(0, 8) + '...' + cookie.substring(cookie.length - 8) : 
             cookie;
         
-        tag.title = cookie; // 完整Cookie作为工具提示
+        tag.title = cookie; // Full Cookie as tooltip
         
-        // 修改样式，使用与API Key相同的删除按钮样式
+        // Use same delete button style as API Key
         tag.innerHTML = `
             <span class="cookie-text-content">${displayText}</span>
             <div class="cookie-buttons">
-                <button type="button" class="copy-btn" data-cookie="${cookie}" aria-label="复制">C</button>
-                <button type="button" class="delete-cookie" data-index="${index}" aria-label="删除">×</button>
+                <button type="button" class="copy-btn" data-cookie="${cookie}" aria-label="Copy">C</button>
+                <button type="button" class="delete-cookie" data-index="${index}" aria-label="Delete">×</button>
             </div>
         `;
         container.appendChild(tag);
     });
     
-    // 添加删除按钮的事件监听
+    // Add delete button event listeners
     document.querySelectorAll('#invalidCookieTagsContainer .delete-cookie').forEach(btn => {
         btn.addEventListener('click', function() {
             const index = parseInt(this.getAttribute('data-index'));
@@ -1227,7 +1227,7 @@ function renderInvalidCookieTags(cookies) {
         });
     });
     
-    // 添加复制按钮的事件监听
+    // Add copy button event listeners
     document.querySelectorAll('#invalidCookieTagsContainer .copy-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const cookie = this.getAttribute('data-cookie');
@@ -1236,23 +1236,23 @@ function renderInvalidCookieTags(cookies) {
     });
 }
 
-// 删除无效Cookie标签
+// Delete invalid Cookie tag
 function deleteInvalidCookieTag(index) {
-    // 从隐藏的textarea中获取当前的cookies
+    // Get current cookies from hidden textarea
     const cookieValuesElem = document.getElementById('invalidCookiesValues');
     let cookies = cookieValuesElem.value.split(',').map(c => c.trim()).filter(c => c);
     
-    // 删除指定索引的cookie
+    // Remove cookie at specified index
     cookies.splice(index, 1);
     
-    // 更新隐藏的textarea
+    // Update hidden textarea
     cookieValuesElem.value = cookies.join(',');
     
-    // 重新渲染标签
+    // Re-render tags
     renderInvalidCookieTags(cookies);
 }
 
-// 处理添加新无效Cookie
+// Handle add new invalid Cookie
 function handleAddInvalidCookie() {
     const newCookieInput = document.getElementById('newInvalidCookie');
     const newCookie = newCookieInput.value.trim();
@@ -1261,43 +1261,43 @@ function handleAddInvalidCookie() {
         return;
     }
     
-    // 获取当前的cookies
+    // Get current cookies
     const cookieValuesElem = document.getElementById('invalidCookiesValues');
     let cookies = cookieValuesElem.value ? 
         cookieValuesElem.value.split(',').map(c => c.trim()).filter(c => c) : 
         [];
     
-    // 添加新cookie
+    // Add new cookie
     cookies.push(newCookie);
     
-    // 更新隐藏的textarea
+    // Update hidden textarea
     cookieValuesElem.value = cookies.join(',');
     
-    // 重新渲染标签
+    // Re-render tags
     renderInvalidCookieTags(cookies);
     
-    // 清空输入框
+    // Clear input
     newCookieInput.value = '';
 }
 
-// 处理无效Cookie编辑表单提交
+// Handle invalid Cookie edit form submission
 async function handleInvalidCookieForm(e) {
     e.preventDefault();
     
     const cookieValuesText = document.getElementById('invalidCookiesValues').value.trim();
     
-    // 将逗号分隔的 Cookie 值转换为数组
+    // Convert comma-separated Cookie values to array
     const invalidCookies = cookieValuesText ? 
         cookieValuesText.split(',').map(cookie => cookie.trim()).filter(cookie => cookie) : 
         [];
     
     try {
-        // 先清除所有无效Cookie
+        // First clear all invalid cookies
         await clearAllInvalidCookies();
         
-        // 如果有新的无效Cookie，逐个添加
+        // If new invalid cookies, add each one
         if (invalidCookies.length > 0) {
-            // 假设API提供了批量添加无效Cookie的接口
+            // API provides batch add invalid cookies endpoint
             const response = await fetch('/v1/invalid-cookies', {
                 method: 'POST',
                 headers: {
@@ -1312,31 +1312,31 @@ async function handleInvalidCookieForm(e) {
             
             if (data.success) {
                 document.getElementById('invalidCookieModalMessage').innerHTML = `
-                    <div class="info">无效Cookie修改成功</div>
+                    <div class="info">Invalid cookies modified successfully</div>
                 `;
                 setTimeout(() => {
                     closeInvalidCookieModal();
-                    renderInvalidCookies(); // 重新渲染列表
+                    renderInvalidCookies(); // Re-render list
                 }, 1500);
             } else {
                 document.getElementById('invalidCookieModalMessage').innerHTML = `
-                    <div class="error">无效Cookie修改失败: ${data.error}</div>
+                    <div class="error">Failed to modify invalid cookies: ${data.error}</div>
                 `;
             }
         } else {
-            // 如果清空了所有无效Cookie
+            // If all invalid cookies cleared
             document.getElementById('invalidCookieModalMessage').innerHTML = `
-                <div class="info">已清空所有无效Cookie</div>
+                <div class="info">All invalid cookies cleared</div>
             `;
             setTimeout(() => {
                 closeInvalidCookieModal();
-                renderInvalidCookies(); // 重新渲染列表
+                renderInvalidCookies(); // Re-render list
             }, 1500);
         }
     } catch (error) {
-        console.error('修改无效Cookie失败:', error);
+        console.error('Modify invalid cookies failed:', error);
         document.getElementById('invalidCookieModalMessage').innerHTML = `
-            <div class="error">修改无效Cookie失败: ${error.message}</div>
+            <div class="error">Failed to modify invalid cookies: ${error.message}</div>
         `;
     }
 } 

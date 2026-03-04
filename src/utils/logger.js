@@ -1,16 +1,16 @@
-// logger.js - 统一的日志系统模块
+// logger.js - Unified logging system module
 const fs = require('fs');
 const path = require('path');
 
-// 避免循环依赖
+// Avoid circular dependency
 let config = null;
-// 延迟加载配置
+// Lazy load configuration
 function getConfig() {
   if (!config) {
     try {
       config = require('../config/config');
     } catch (err) {
-      console.error('加载配置文件失败:', err.message);
+      console.error('Failed to load config file:', err.message);
       config = { log: { level: 'INFO', format: 'colored' } };
     }
   }
@@ -23,16 +23,16 @@ const LOG_LEVELS = {
   INFO: 2,
   DEBUG: 3,
   TRACE: 4,
-  HTTP: 2 // HTTP日志级别与INFO相同
+  HTTP: 2 // HTTP log level same as INFO
 };
 
-// 默认日志级别
+// Default log level
 let currentLogLevel = LOG_LEVELS.INFO;
 
-// 日志格式
+// Log format
 let logFormat = 'colored'; // colored, json, text
 
-// 带颜色的控制台输出
+// Colored console output
 const COLORS = {
   RESET: '\x1b[0m',
   RED: '\x1b[31m',
@@ -42,17 +42,17 @@ const COLORS = {
   CYAN: '\x1b[36m'
 };
 
-// 日志文件配置
+// Log file configuration
 const LOG_DIR = path.join(__dirname, '../../logs');
 const LOG_FILE = path.join(LOG_DIR, 'app.log');
 const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
 let logToFile = false;
 
-// 内存中存储的日志（用于网页显示）
+// Logs stored in memory (for web display)
 const memoryLogs = [];
-const MAX_MEMORY_LOGS = 1000; // 内存中最多保存的日志条数
+const MAX_MEMORY_LOGS = 1000; // Maximum number of log entries to keep in memory
 
-// 确保日志目录存在
+// Ensure log directory exists
 function ensureLogDirExists() {
   try {
     if (!fs.existsSync(LOG_DIR)) {
@@ -60,18 +60,18 @@ function ensureLogDirExists() {
     }
     return true;
   } catch (err) {
-    console.error(`创建日志目录失败: ${err.message}`);
+    console.error(`Failed to create log directory: ${err.message}`);
     return false;
   }
 }
 
-// 初始化文件日志
+// Initialize file logging
 function initFileLogging() {
   const conf = getConfig();
   if (process.env.LOG_TO_FILE === 'true' || (conf.log && conf.log.toFile)) {
     if (ensureLogDirExists()) {
       logToFile = true;
-      // 检查日志文件大小，如果超过最大值则进行轮转
+      // Check log file size, rotate if exceeds maximum
       if (fs.existsSync(LOG_FILE)) {
         const stats = fs.statSync(LOG_FILE);
         if (stats.size > MAX_LOG_SIZE) {
@@ -84,7 +84,7 @@ function initFileLogging() {
   return false;
 }
 
-// 日志文件轮转
+// Log file rotation
 function rotateLogFile() {
   try {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -92,7 +92,7 @@ function rotateLogFile() {
     if (fs.existsSync(LOG_FILE)) {
       fs.renameSync(LOG_FILE, newLogFile);
     }
-    // 清理旧日志文件，保留最近10个
+    // Clean up old log files, keep last 10
     const logFiles = fs.readdirSync(LOG_DIR)
       .filter(file => file.startsWith('app-') && file.endsWith('.log'))
       .sort()
@@ -103,34 +103,34 @@ function rotateLogFile() {
         try {
           fs.unlinkSync(path.join(LOG_DIR, file));
         } catch (err) {
-          console.error(`删除旧日志文件失败: ${err.message}`);
+          console.error(`Failed to delete old log file: ${err.message}`);
         }
       });
     }
   } catch (err) {
-    console.error(`日志文件轮转失败: ${err.message}`);
+    console.error(`Log file rotation failed: ${err.message}`);
     logToFile = false;
   }
 }
 
-// 添加日志到内存
+// Add log to memory
 function addLogToMemory(level, timestamp, ...args) {
-  // 将日志对象添加到内存数组
+  // Add log entry to memory array
   const logEntry = {
     level,
     timestamp,
     message: args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ')
   };
   
-  memoryLogs.unshift(logEntry); // 新日志添加到数组开头
+  memoryLogs.unshift(logEntry); // New logs added to array start
   
-  // 保持数组在最大长度以内
+  // Keep array within max length
   if (memoryLogs.length > MAX_MEMORY_LOGS) {
-    memoryLogs.pop(); // 移除最旧的日志
+    memoryLogs.pop(); // Remove oldest log
   }
 }
 
-// 将日志写入文件
+// Write log to file
 function writeLogToFile(level, timestamp, ...args) {
   if (!logToFile) return;
   
@@ -138,7 +138,7 @@ function writeLogToFile(level, timestamp, ...args) {
     let logEntry;
     
     if (logFormat === 'json') {
-      // JSON格式
+      // JSON format
       const data = args.map(arg => typeof arg === 'object' ? arg : String(arg));
       const logObject = {
         level,
@@ -147,7 +147,7 @@ function writeLogToFile(level, timestamp, ...args) {
       };
       logEntry = JSON.stringify(logObject) + '\n';
     } else {
-      // 文本格式
+      // Text format
       logEntry = `[${level}] ${timestamp} ${args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg) : arg
       ).join(' ')}\n`;
@@ -155,54 +155,54 @@ function writeLogToFile(level, timestamp, ...args) {
     
     fs.appendFileSync(LOG_FILE, logEntry);
     
-    // 检查文件大小，必要时进行轮转
+    // Check file size, rotate if necessary
     const stats = fs.statSync(LOG_FILE);
     if (stats.size > MAX_LOG_SIZE) {
       rotateLogFile();
     }
   } catch (err) {
-    console.error(`写入日志文件失败: ${err.message}`);
+    console.error(`Failed to write to log file: ${err.message}`);
     logToFile = false;
   }
 }
 
-// 获取时间戳
+// Get timestamp
 function getTimestamp() {
   return new Date().toISOString();
 }
 
-// 设置日志级别
+// Set log level
 function setLogLevel(level) {
   if (typeof level === 'string') {
     level = level.toUpperCase();
     if (LOG_LEVELS[level] !== undefined) {
       currentLogLevel = LOG_LEVELS[level];
     } else {
-      error(`无效的日志级别: ${level}`);
+      error(`Invalid log level: ${level}`);
     }
   } else if (typeof level === 'number' && level >= 0 && level <= 4) {
     currentLogLevel = level;
   } else {
-    error(`无效的日志级别: ${level}`);
+    error(`Invalid log level: ${level}`);
   }
 }
 
-// 设置日志格式
+// Set log format
 function setLogFormat(format) {
   const validFormats = ['colored', 'json', 'text'];
   if (validFormats.includes(format)) {
     logFormat = format;
     return true;
   } else {
-    error(`无效的日志格式: ${format}`);
+    error(`Invalid log format: ${format}`);
     return false;
   }
 }
 
-// 格式化控制台日志
+// Format console log
 function formatConsoleLog(level, timestamp, color, ...args) {
   if (logFormat === 'json') {
-    // JSON格式
+    // JSON format
     const data = args.map(arg => typeof arg === 'object' ? arg : String(arg));
     return JSON.stringify({
       level,
@@ -210,15 +210,15 @@ function formatConsoleLog(level, timestamp, color, ...args) {
       message: data.length === 1 ? data[0] : data
     });
   } else if (logFormat === 'text') {
-    // 纯文本格式（无颜色）
+    // Plain text format (no color)
     return `[${level}] ${timestamp} ${args.join(' ')}`;
   } else {
-    // 默认：带颜色格式
+    // Default: colored format
     return `${color}[${level}] ${timestamp}${COLORS.RESET} ${args.join(' ')}`;
   }
 }
 
-// 错误日志
+// Error log
 function error(...args) {
   if (currentLogLevel >= LOG_LEVELS.ERROR) {
     const timestamp = getTimestamp();
@@ -229,7 +229,7 @@ function error(...args) {
   }
 }
 
-// 警告日志
+// Warning log
 function warn(...args) {
   if (currentLogLevel >= LOG_LEVELS.WARN) {
     const timestamp = getTimestamp();
@@ -240,7 +240,7 @@ function warn(...args) {
   }
 }
 
-// 信息日志
+// Info log
 function info(...args) {
   if (currentLogLevel >= LOG_LEVELS.INFO) {
     const timestamp = getTimestamp();
@@ -251,7 +251,7 @@ function info(...args) {
   }
 }
 
-// 调试日志
+// Debug log
 function debug(...args) {
   if (currentLogLevel >= LOG_LEVELS.DEBUG) {
     const timestamp = getTimestamp();
@@ -262,7 +262,7 @@ function debug(...args) {
   }
 }
 
-// 跟踪日志
+// Trace log
 function trace(...args) {
   if (currentLogLevel >= LOG_LEVELS.TRACE) {
     const timestamp = getTimestamp();
@@ -273,7 +273,7 @@ function trace(...args) {
   }
 }
 
-// HTTP请求日志 (特殊处理，方便筛选)
+// HTTP request log (special handling for filtering)
 function http(...args) {
   if (currentLogLevel >= LOG_LEVELS.INFO) {
     const timestamp = getTimestamp();
@@ -284,16 +284,16 @@ function http(...args) {
   }
 }
 
-// 获取内存中的日志
+// Get logs from memory
 function getLogs(filter = {}) {
   let filteredLogs = [...memoryLogs];
   
-  // 按日志级别筛选
+  // Filter by log level
   if (filter.level) {
     filteredLogs = filteredLogs.filter(log => log.level === filter.level);
   }
   
-  // 按时间范围筛选
+  // Filter by time range
   if (filter.startTime) {
     filteredLogs = filteredLogs.filter(log => new Date(log.timestamp) >= new Date(filter.startTime));
   }
@@ -302,7 +302,7 @@ function getLogs(filter = {}) {
     filteredLogs = filteredLogs.filter(log => new Date(log.timestamp) <= new Date(filter.endTime));
   }
   
-  // 按关键词搜索
+  // Search by keyword
   if (filter.search) {
     const searchTerm = filter.search.toLowerCase();
     filteredLogs = filteredLogs.filter(log => 
@@ -311,7 +311,7 @@ function getLogs(filter = {}) {
     );
   }
   
-  // 分页
+  // Pagination
   const page = filter.page || 1;
   const pageSize = filter.pageSize || 100;
   const start = (page - 1) * pageSize;
@@ -325,18 +325,18 @@ function getLogs(filter = {}) {
   };
 }
 
-// 清除内存日志
+// Clear memory logs
 function clearMemoryLogs() {
   memoryLogs.length = 0;
-  info('内存日志已清除');
+  info('Memory logs cleared');
 }
 
-// 初始化配置
+// Initialize configuration
 function initialize() {
   try {
     const conf = getConfig();
     
-    // 初始化日志级别
+    // Initialize log level
     const envLevel = process.env.LOG_LEVEL;
     if (envLevel) {
       setLogLevel(envLevel);
@@ -344,7 +344,7 @@ function initialize() {
       setLogLevel(conf.log.level);
     }
     
-    // 初始化日志格式
+    // Initialize log format
     const envFormat = process.env.LOG_FORMAT;
     if (envFormat) {
       setLogFormat(envFormat);
@@ -352,14 +352,14 @@ function initialize() {
       setLogFormat(conf.log.format);
     }
     
-    // 初始化文件日志
+    // Initialize file logging
     initFileLogging();
   } catch (err) {
-    console.error(`初始化日志系统出错: ${err.message}`);
+    console.error(`Failed to initialize logging system: ${err.message}`);
   }
 }
 
-// 初始化
+// Initialize
 initialize();
 
 module.exports = {
@@ -372,21 +372,21 @@ module.exports = {
   debug,
   trace,
   http,
-  // 暴露文件日志相关方法
+  // Expose file logging related methods
   enableFileLogging: () => {
     if (ensureLogDirExists()) {
       logToFile = true;
-      info('文件日志已启用');
+      info('File logging enabled');
       return true;
     }
     return false;
   },
   disableFileLogging: () => {
     logToFile = false;
-    info('文件日志已禁用');
+    info('File logging disabled');
   },
   rotateLogFile,
-  // 添加内存日志相关方法
+  // Expose memory log methods
   getLogs,
   clearMemoryLogs
 }; 

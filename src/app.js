@@ -1,7 +1,7 @@
-// 加载环境变量
+// Load environment variables
 require('dotenv').config();
 
-// 在logger加载前添加临时日志函数
+// Add temporary log function before logger loads
 function tempLog(level, message) {
   const timestamp = new Date().toISOString();
   if (level === 'ERROR') {
@@ -13,10 +13,10 @@ function tempLog(level, message) {
   }
 }
 
-// 环境检查
-tempLog('INFO', '启动前检查环境配置...');
+// Environment check
+tempLog('INFO', 'Pre-startup environment check...');
 const envChecker = require('./utils/envChecker');
-// 先执行简单检查，避免循环依赖
+// Execute simple check first to avoid circular dependency
 envChecker.enforceEnvCheck();
 
 const express = require('express');
@@ -27,7 +27,7 @@ const app = express();
 const cookieParser = require('cookie-parser');
 const { spawn } = require('child_process');
 
-// 先加载配置，再加载logger
+// Load config first, then logger
 const config = require('./config/config');
 const logger = require('./utils/logger');
 const routes = require('./routes');
@@ -36,37 +36,37 @@ const cookieRefresher = require('./utils/cookieRefresher');
 const authMiddleware = require('./middleware/auth');
 const proxyLauncher = require('./utils/proxyLauncher');
 
-// 初始化代理服务器
+// Initialize proxy server
 if (process.env.USE_TLS_PROXY === 'true') {
-  logger.info('正在启动TLS代理服务器...');
+  logger.info('Starting TLS proxy server...');
   proxyLauncher.startProxyServer();
 } else {
-  logger.info('TLS代理服务器未启用，跳过启动代理');
+  logger.info('TLS proxy server not enabled, skipping proxy startup');
 }
 
-// 加载路由
+// Load routes
 const v1Router = require('./routes/v1');
 
-// 初始化API Keys
-logger.info('初始化API Keys...');
+// Initialize API Keys
+logger.info('Initializing API Keys...');
 keyManager.initializeApiKeys();
 
-// 输出最终的API Keys配置
-logger.debug('最终API Keys配置:', JSON.stringify(keyManager.getAllApiKeys().reduce((obj, key) => {
+// Output final API Keys configuration
+logger.debug('Final API Keys configuration:', JSON.stringify(keyManager.getAllApiKeys().reduce((obj, key) => {
   obj[key] = keyManager.getAllCookiesForApiKey(key);
   return obj;
 }, {}), null, 2));
 
-// 输出每个API key的Cookie数量信息
+// Output cookie count for each API key
 const apiKeys = keyManager.getAllApiKeys();
 const keySummary = apiKeys.map(key => {
     const cookies = keyManager.getAllCookiesForApiKey(key);
-    return `${key}: ${cookies.length}个Cookie`;
+    return `${key}: ${cookies.length} cookies`;
 }).join(', ');
 
-logger.info(`当前已加载 ${apiKeys.length} 个API Key，详情: ${keySummary}`);
+logger.info(`Currently loaded ${apiKeys.length} API Keys, details: ${keySummary}`);
 
-// 添加CORS支持
+// Add CORS support
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -83,15 +83,15 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
-// 自定义Morgan格式，将日志输出到我们的日志系统
+// Custom Morgan format to output logs to our log system
 morgan.token('remote-addr', (req) => {
   return req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 });
 
-// 创建一个将 Morgan 日志写入我们的日志系统的流
+// Create a stream that writes Morgan logs to our log system
 const morganLoggerStream = {
   write: (message) => {
-    // 移除行尾的换行符
+    // Remove trailing newline
     const trimmedMessage = message.trim();
     if (trimmedMessage) {
       logger.http(trimmedMessage);
@@ -99,36 +99,36 @@ const morganLoggerStream = {
   }
 };
 
-// 使用自定义格式的 Morgan 中间件
+// Morgan middleware with custom format
 app.use(morgan(process.env.MORGAN_FORMAT || 'combined', { 
   stream: morganLoggerStream,
-  // 跳过健康检查等路由的日志
+  // Skip logs for health check and similar routes
   skip: (req, res) => {
     return req.path === '/health' || req.path === '/favicon.ico';
   }
 }));
 
-// 添加静态文件支持
+// Add static file support
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 添加根路由，重定向到登录页面
+// Add root route, redirect to login page
 app.get('/', (req, res) => {
     res.redirect('/login.html');
 });
 
-// 添加认证中间件
+// Add auth middleware
 app.use(authMiddleware);
 
-// API路由
+// API routes
 app.use('/v1', v1Router);
 
 app.use("/", routes)
 
-// 设置自动定时刷新Cookie任务
+// Set auto scheduled cookie refresh task
 if (config.refresh.enabled) {
-    logger.info(`已启用自动刷新 Cookie，定时任务将在每 ${config.refresh.interval} 运行`);
+    logger.info(`Auto refresh Cookie enabled, scheduled task will run every ${config.refresh.interval}`);
     cron.schedule(config.refresh.interval, () => {
-        logger.info('开始定时自动刷新 Cookie...');
+        logger.info('Starting scheduled auto refresh Cookie...');
         const scriptPath = path.resolve(__dirname, '../auto-refresh-cookies.js');
         
         const child = spawn('node', [scriptPath], {
@@ -136,64 +136,64 @@ if (config.refresh.enabled) {
         });
         
         child.stdout.on('data', (data) => {
-            logger.info(`刷新进程输出: ${data.toString().trim()}`);
+            logger.info(`Refresh process output: ${data.toString().trim()}`);
         });
         
         child.stderr.on('data', (data) => {
-            logger.error(`刷新进程错误: ${data.toString().trim()}`);
+            logger.error(`Refresh process error: ${data.toString().trim()}`);
         });
         
         child.on('close', (code) => {
             if (code === 0) {
-                logger.info('自动刷新 Cookie 定时任务完成');
+                logger.info('Auto refresh Cookie scheduled task completed');
             } else {
-                logger.error(`自动刷新 Cookie 定时任务异常退出，代码: ${code}`);
+                logger.error(`Auto refresh Cookie scheduled task exited abnormally, code: ${code}`);
             }
         });
     });
 } else {
-    logger.info('未启用自动刷新 Cookie，如需启用请设置环境变量 ENABLE_AUTO_REFRESH=true');
+    logger.info('Auto refresh Cookie not enabled, set ENABLE_AUTO_REFRESH=true to enable');
 }
 
-// 错误处理中间件
+// Error handling middleware
 app.use((err, req, res, next) => {
-  logger.error('服务器错误:', err);
+  logger.error('Server error:', err);
   res.status(500).json({
     error: 'Internal server error',
     message: err.message
   });
 });
 
-// 处理404请求
+// Handle 404 requests
 app.use((req, res) => {
-  logger.warn(`未找到路由: ${req.method} ${req.url}`);
+  logger.warn(`Route not found: ${req.method} ${req.url}`);
   res.status(404).json({
     error: 'Not found',
-    message: '请求的资源不存在'
+    message: 'Requested resource does not exist'
   });
 });
 
 app.listen(config.port, () => {
-    logger.info(`服务器已启动，监听端口: ${config.port}`);
-    logger.info(`打开管理界面: http://localhost:${config.port}`);
+    logger.info(`Server started, listening on port: ${config.port}`);
+    logger.info(`Open management interface: http://localhost:${config.port}`);
 });
 
-// 处理进程退出事件，清理资源
+// Handle process exit events, cleanup resources
 process.on('SIGINT', () => {
-  logger.info('接收到SIGINT信号，正在优雅关闭服务...');
-  // 停止代理服务器
+  logger.info('Received SIGINT signal, gracefully shutting down...');
+  // Stop proxy server
   if (process.env.USE_TLS_PROXY === 'true') {
-    logger.info('正在停止TLS代理服务器...');
+    logger.info('Stopping TLS proxy server...');
     proxyLauncher.stopProxyServer();
   }
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  logger.info('接收到SIGTERM信号，正在优雅关闭服务...');
-  // 停止代理服务器
+  logger.info('Received SIGTERM signal, gracefully shutting down...');
+  // Stop proxy server
   if (process.env.USE_TLS_PROXY === 'true') {
-    logger.info('正在停止TLS代理服务器...');
+    logger.info('Stopping TLS proxy server...');
     proxyLauncher.stopProxyServer();
   }
   process.exit(0);

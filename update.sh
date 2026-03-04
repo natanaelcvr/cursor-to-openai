@@ -1,8 +1,8 @@
-﻿#!/bin/bash
+#!/bin/bash
 
 echo "start update process..."
 
-# 还原特定的代理服务器文件
+# Restore specific proxy server files
 git checkout HEAD -- src/proxy/cursor_proxy_server_android_arm64 \
                    src/proxy/cursor_proxy_server_linux_amd64 \
                    src/proxy/cursor_proxy_server_windows_amd64.exe
@@ -12,7 +12,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 拉取远程更新，保留服务器端更改
+# Pull remote updates, keeping server-side changes
 git pull -X theirs
 
 if [ $? -ne 0 ]; then

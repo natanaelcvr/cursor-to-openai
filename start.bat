@@ -1,17 +1,17 @@
 @echo off
 chcp 65001 >nul
-REM 编码：UTF-8
+REM Encoding: UTF-8
 
-REM 安装依赖
+REM Install dependencies
 echo install dependencies...
 call npm install --no-fund --quiet --no-audit
 
-REM 检查上一个命令的退出状态
+REM Check exit status of previous command
 if %ERRORLEVEL% neq 0 (
     echo dependencies installation failed,maybe start application failed
 )
 
-REM 启动应用
+REM Start application
 echo start application...
 call npm start
 pause

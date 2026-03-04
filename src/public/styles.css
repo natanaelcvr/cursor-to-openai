@@ -1,4 +1,4 @@
-/* iOS风格现代化样式 */
+/* iOS-style modern styling */
 :root {
   --ios-background: #f2f2f7;
   --ios-card-background: #ffffff;
@@ -15,7 +15,7 @@
   --ios-padding: 16px;
 }
 
-/* 夜间模式变量 */
+/* Dark mode variables */
 [data-theme="dark"] {
   --ios-background: #000000;
   --ios-card-background: #1c1c1e;
@@ -30,12 +30,12 @@
   --ios-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* 防止初始加载时主题切换闪烁 */
+/* Prevent theme switch flicker during initial load */
 .no-transition * {
   transition: none !important;
 }
 
-/* 主题切换时的平滑过渡效果 */
+/* Smooth transition effects during theme switching */
 .theme-transition {
   transition: background-color 0.6s cubic-bezier(0.25, 1, 0.5, 1), 
               color 0.6s cubic-bezier(0.25, 1, 0.5, 1),
@@ -52,7 +52,7 @@
               opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* 主题切换按钮样式 */
+/* Theme toggle button styles */
 .theme-switch {
   position: fixed;
   bottom: 20px;
@@ -72,13 +72,13 @@
   overflow: hidden;
 }
 
-/* 主题切换按钮动画 */
+/* Theme toggle button animation */
 .theme-switch-animate {
   transform: rotate(180deg) scale(1.1);
   box-shadow: 0 0 20px rgba(var(--ios-blue-rgb, 0, 122, 255), 0.5);
 }
 
-/* 主题图标动画 */
+/* Theme icon animation */
 .theme-icon {
   width: 24px;
   height: 24px;
@@ -100,7 +100,7 @@
   transform: scale(0.95);
 }
 
-/* 提取颜色的RGB值用于动画和透明度 */
+/* Extract RGB color values for animation and opacity */
 :root {
   --ios-blue-rgb: 0, 122, 255;
   --ios-green-rgb: 52, 199, 89;
@@ -115,7 +115,7 @@
   --ios-yellow-rgb: 255, 214, 10;
 }
 
-/* 适配夜间模式的样式调整 */
+/* Style adjustments for dark mode */
 [data-theme="dark"] .header-card {
   background: linear-gradient(-45deg, #30d158, #0a84ff, #5e5ce6, #64d2ff);
   background-size: 300% 300%;
@@ -182,7 +182,7 @@
   box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25);
 }
 
-/* 主题切换动画 */
+/* Theme switch animation */
 body {
   transition: background-color 0.3s ease;
 }
@@ -537,7 +537,7 @@ progress::-webkit-progress-value {
   transition: width 0.3s ease;
 }
 
-/* 梦幻动态渐变背景动画 */
+/* Dreamy dynamic gradient background animation */
 @keyframes gradientAnimation {
   0% {
     background-position: 0% 50%;
@@ -661,7 +661,7 @@ progress::-webkit-progress-value {
   margin-left: auto;
 }
 
-/* 适配移动端的样式 */
+/* Mobile-responsive styles */
 @media screen and (max-width: 768px) {
   body {
     padding: 12px;
@@ -691,7 +691,7 @@ progress::-webkit-progress-value {
     margin-bottom: 8px;
   }
   
-  /* 优化添加按钮在移动端的宽度 */
+  /* Optimize add button width on mobile */
   .add-cookie-btn {
     width: auto;
     min-width: 42px;
@@ -705,19 +705,19 @@ progress::-webkit-progress-value {
     margin: 0;
   }
   
-  /* 让输入框占据更多宽度 */
+  /* Make input fields take more width */
   #addNewCookie, 
   #newCookie, 
   #newInvalidCookie {
     flex: 1;
   }
   
-  /* 优化表单布局 */
+  /* Optimize form layout */
   div[style*="display: flex; gap: 10px;"] {
     gap: 8px !important;
   }
   
-  /* 优化Cookie标签在移动端的显示 */
+  /* Optimize cookie tag display on mobile */
   .cookie-tag {
     font-size: 13px;
     padding: 6px 10px;
@@ -725,12 +725,12 @@ progress::-webkit-progress-value {
     width: 100%;
   }
   
-  /* 让Cookie内容区域尽可能宽 */
+  /* Make cookie content area as wide as possible */
   .cookie-text-content {
     max-width: calc(100% - 68px);
   }
   
-  /* 优化复制与删除按钮 */
+  /* Optimize copy and delete buttons */
   .cookie-buttons {
     display: flex;
     align-items: center;
@@ -770,7 +770,7 @@ progress::-webkit-progress-value {
     margin: 15% auto 5%;
   }
   
-  /* 在小屏幕上重新排列表格 */
+  /* Rearrange table on small screens */
   table, thead, tbody, th, td, tr {
     display: block;
   }
@@ -811,10 +811,10 @@ progress::-webkit-progress-value {
     font-size: 13px;
   }
   
-  /* 设置每个单元格的标题 */
+  /* Set title for each cell */
   #keyTable td:nth-of-type(1):before { content: "API Key"; }
-  #keyTable td:nth-of-type(2):before { content: "Cookie 数量"; }
-  #keyTable td:nth-of-type(3):before { content: "操作"; }
+  #keyTable td:nth-of-type(2):before { content: "Cookie Count"; }
+  #keyTable td:nth-of-type(3):before { content: "Actions"; }
   
   .action-btn, .edit-btn {
     margin-right: 8px;
@@ -863,7 +863,7 @@ progress::-webkit-progress-value {
   }
 } 
 
-/* 为header-card内的按钮添加特殊样式 */
+/* Special styles for buttons inside header-card */
 .header-card button {
   background-color: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(5px);
@@ -899,7 +899,7 @@ progress::-webkit-progress-value {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* 用户信息样式 */
+/* User info styles */
 .header-card .user-info {
   display: flex;
   align-items: center;
@@ -911,7 +911,7 @@ progress::-webkit-progress-value {
   opacity: 0.9;
 }
 
-/* 退出按钮特殊样式 */
+/* Logout button special styles */
 .header-card .logout-btn {
   background-color: rgba(255, 59, 48, 0.9);
   color: white;
@@ -936,7 +936,7 @@ progress::-webkit-progress-value {
   background-color: rgba(255, 69, 58, 0.9);
 }
 
-/* 按钮组样式 */
+/* Button group styles */
 .header-card .button-group {
   display: flex;
   gap: 10px;
@@ -947,13 +947,13 @@ progress::-webkit-progress-value {
   flex: 1;
 }
 
-/* 用户名颜色随主题切换 */
+/* Username color changes with theme */
 #adminUsername {
   color: var(--ios-text-primary) !important;
 } 
 
-/* 优化主题切换动画 - 添加在文件末尾 */
-/* 提取颜色的RGB值用于动画和透明度 */
+/* Optimize theme switch animation - appended at end of file */
+/* Extract RGB color values for animation and opacity */
 :root {
   --ios-blue-rgb: 0, 122, 255;
   --ios-green-rgb: 52, 199, 89;
@@ -968,12 +968,12 @@ progress::-webkit-progress-value {
   --ios-yellow-rgb: 255, 214, 10;
 }
 
-/* 防止初始加载时主题切换闪烁 */
+/* Prevent theme switch flicker during initial load */
 .no-transition * {
   transition: none !important;
 }
 
-/* 主题切换时的平滑过渡效果 */
+/* Smooth transition effects during theme switching */
 .theme-transition {
   transition: background-color 0.6s cubic-bezier(0.25, 1, 0.5, 1), 
               color 0.6s cubic-bezier(0.25, 1, 0.5, 1),
@@ -990,13 +990,13 @@ progress::-webkit-progress-value {
               opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* 主题切换按钮动画 */
+/* Theme toggle button animation */
 .theme-switch-animate {
   transform: rotate(180deg) scale(1.1);
   box-shadow: 0 0 20px rgba(var(--ios-blue-rgb), 0.5);
 }
 
-/* 主题图标动画 */
+/* Theme icon animation */
 .theme-icon {
   width: 24px;
   height: 24px;
@@ -1018,7 +1018,7 @@ progress::-webkit-progress-value {
   transform: scale(0.95);
 }
 
-/* 优化特定元素的过渡效果 */
+/* Optimize transition effects for specific elements */
 .card {
   transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), 
               background-color 0.6s cubic-bezier(0.25, 1, 0.5, 1), 
@@ -1045,7 +1045,7 @@ input, textarea, select {
               border-color 0.6s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* 添加主题切换时的特殊动画效果 */
+/* Special animation effects for theme switching */
 .theme-transition .card {
   animation: card-theme-shift 0.8s cubic-bezier(0.25, 1, 0.5, 1);
 }
@@ -1056,7 +1056,7 @@ input, textarea, select {
   100% { transform: translateY(0); }
 }
 
-/* 确保元素在滚动和动画期间的流畅渲染 */
+/* Ensure smooth rendering during scroll and animation */
 .card, .theme-switch, .modal-content, input, button {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
@@ -1065,7 +1065,7 @@ input, textarea, select {
   will-change: transform, opacity;
 }
 
-/* 调整主题切换动画效果 */
+/* Adjust theme switch animation effects */
 .theme-transition body {
   animation: bg-fade 0.8s cubic-bezier(0.25, 1, 0.5, 1);
 }
@@ -1076,7 +1076,7 @@ input, textarea, select {
   100% { opacity: 1; }
 }
 
-/* 侧边导航栏样式 */
+/* Side navigation bar styles */
 .side-nav-trigger {
   position: fixed;
   right: 20px;
@@ -1178,7 +1178,7 @@ input, textarea, select {
   box-shadow: 0 0 5px rgba(0, 122, 255, 0.5);
 }
 
-/* 非活动条目使用浅灰色文字 */
+/* Inactive items use light gray text */
 .nav-item-title {
   color: var(--ios-gray);
   font-size: 14px;
@@ -1190,13 +1190,13 @@ input, textarea, select {
   transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-/* 当前激活条目使用主要文字颜色并加粗 */
+/* Active item uses primary text color and bold */
 .nav-item.active .nav-item-title {
   color: var(--ios-blue);
   font-weight: 600;
 }
 
-/* 鼠标悬停时字体放大加粗 */
+/* Font enlarges and bolds on hover */
 .nav-item:hover .nav-item-title {
   transform: scale(1.05);
   font-weight: 500;
@@ -1219,7 +1219,7 @@ input, textarea, select {
     width: 180px;
   }
   
-  /* 移动端点击显示目录 */
+  /* Show navigation on mobile click */
   .side-nav-trigger.touch-active + .side-nav-menu,
   .side-nav-menu.touch-active {
     opacity: 1;
@@ -1227,7 +1227,7 @@ input, textarea, select {
   }
 }
 
-/* 暗色模式自适应 */
+/* Dark mode adaptive */
 @media (prefers-color-scheme: dark) {
   .side-nav-trigger {
     background-color: rgba(30, 30, 30, 0.3);
